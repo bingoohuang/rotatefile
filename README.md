@@ -9,16 +9,16 @@ It is not an all-in-one solution, but instead is a pluggable
 component at the bottom of the logging stack that simply controls the files
 to which logs are written.
 
-Lumberjack plays well with any logging package that can write to an
+rotatefile plays well with any logging package that can write to an
 io.Writer, including the standard library's log package.
 
-Lumberjack assumes that only one process is writing to the output files.
-Using the same lumberjack configuration from multiple processes on the same
+rotatefile assumes that only one process is writing to the output files.
+Using the same rotatefile configuration from multiple processes on the same
 machine will result in improper behavior.
 
 **Example**
 
-To use lumberjack with the standard library's log package, just pass it into the SetOutput function when your
+To use rotatefile with the standard library's log package, just pass it into the SetOutput function when your
 application starts.
 
 Code:
@@ -73,7 +73,7 @@ type Logger struct {
 Logger is an io.WriteCloser that writes to the specified filename.
 
 Logger opens or creates the logfile on first Write. If the file exists and
-is less than MaxSize megabytes, lumberjack will open and append to that file.
+is less than MaxSize megabytes, rotatefile will open and append to that file.
 If the file exists and its size is >= MaxSize megabytes, the file is renamed
 by putting the current time in a timestamp in the name immediately before the
 file's extension (or the end of the filename if there's no extension). A new
