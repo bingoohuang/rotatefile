@@ -196,6 +196,19 @@ func (l *File) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
+// Flush 刷新文件缓存到磁盘
+// 当写入 warn 级别以上日志时，建议写完后，Flush 刷盘
+func (l *File) Flush() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.file != nil {
+		return l.file.Sync()
+	}
+
+	return nil
+}
+
 // Size 返回当前文件大小.
 func (l *File) Size() int64 {
 	l.mu.Lock()
