@@ -17,6 +17,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"golang.org/x/term"
 	"io"
 	"os"
 	"os/signal"
@@ -31,7 +32,7 @@ import (
 // New creates a new File with default settings.
 // filename like /var/log/myapp/foo.log
 func New(filename string) *File {
-	return &File{
+	f := &File{
 		Filename:     filename,
 		MaxSize:      100 * M, // 最大100M
 		MaxBackups:   30,      // 最多30个历史备份
@@ -41,6 +42,12 @@ func New(filename string) *File {
 
 		RotateSignals: []os.Signal{syscall.SIGHUP}, // 在收到 SIGHUP 时，滚动日志
 	}
+
+	if IsTerminal {
+		f.CopyWriter = os.Stdout
+	}
+
+	return f
 }
 
 const (
@@ -137,6 +144,9 @@ type File struct {
 	// Compress determines if the rotated log files should be compressed
 	// using gzip. The default is not to perform compression.
 	Compress bool `json:"compress" yaml:"compress"`
+
+	// CopyWriter copy the writes.
+	CopyWriter io.Writer
 }
 
 var (
@@ -145,6 +155,9 @@ var (
 
 	// os_Stat exists, so it can be mocked out by tests.
 	osStat = os.Stat
+
+	// IsTerminal tell is if it is on a terminal.
+	IsTerminal = term.IsTerminal(syscall.Stdout)
 )
 
 // Write implements io.Writer.  If a White would cause the log file to be larger
@@ -152,6 +165,10 @@ var (
 // current time, and a new log file is created using the original log file name.
 // If the length of to write is greater than MaxSize, an error is returned.
 func (l *File) Write(p []byte) (n int, err error) {
+	if l.CopyWriter != nil {
+		l.Write(p)
+	}
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
