@@ -1,3 +1,3 @@
-module gopkg.in/bingoohuang/rotatefile
+module github.com/bingoohuang/rotatefile
 
 go 1.13

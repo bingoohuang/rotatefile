@@ -24,13 +24,24 @@ application starts.
 Code:
 
 ```go
-log.SetOutput(&rotatefile.logger{
-Filename:   "/var/log/myapp/foo.log",
-MaxSize:    500, // megabytes
-MaxBackups: 3,
-MaxAge:     28, //days
-Compress:   true, // disabled by default
-})
+package main
+
+import (
+	"log"
+
+	"github.com/bingoohuang/rotatefile"
+)
+
+func init() {
+	log.SetOutput(&rotatefile.Logger{
+		Filename:     "/var/log/myapp/foo.log",
+		MaxSize:      100 * 1024 * 1024,  // 最大100M
+		MaxBackups:   30,                 // 最多30个历史备份
+		MaxDays:      30,                 // 最多保留30天
+		TotalSizeCap: 1024 * 1024 * 1024, // 最大总大小1G
+		Compress:     true,               // disabled by default
+	})
+}
 ```
 
 ## type Logger
@@ -46,17 +57,24 @@ type Logger struct {
     // rotated. It defaults to 100 megabytes.
     MaxSize int `json:"maxSize" yaml:"maxSize"`
 
-    // MaxAge is the maximum number of days to retain old log files based on the
+    // MaxDays is the maximum number of days to retain old log files based on the
     // timestamp encoded in their filename.  Note that a day is defined as 24
     // hours and may not exactly correspond to calendar days due to daylight
     // savings, leap seconds, etc. The default is not to remove old log files
     // based on age.
     MaxDays int `json:"maxDays" yaml:"maxDays"`
 
+	
     // MaxBackups is the maximum number of old log files to retain.  The default
-    // is to retain all old log files (though MaxAge may still cause them to get
+    // is to retain all old log files (though MaxDays may still cause them to get
     // deleted.)
     MaxBackups int `json:"maxBackups" yaml:"maxBackups"`
+
+	// TotalSizeCap 控制所有文件累积总大小
+	// 如果超过该大小，则从最早的文件开始删除，直到删除到当前文件为止
+	// 当前日志文件大小可以超过 TotalSizeCap
+	// 0 不控制
+	TotalSizeCap int64 `json:"totalSizeCap" yaml:"totalSizeCap"`
 
     // UtcTime determines if the time used for formatting the timestamps in
     // backup files is the computer's local time. The default is to use local time.
@@ -97,11 +115,11 @@ at 6:30pm on Nov 11 2016 would use the filename
 Whenever a new logfile gets created, old log files may be deleted. The most
 recent files according to the encoded timestamp will be retained, up to a
 number equal to MaxBackups (or all of them if MaxBackups is 0). Any files
-with an encoded timestamp older than MaxAge days are deleted, regardless of
+with an encoded timestamp older than MaxDays days are deleted, regardless of
 MaxBackups. Note that the time encoded in the timestamp is the rotation
 time, which may differ from the last time that file was written to.
 
-If MaxBackups and MaxAge are both 0, no old log files will be deleted.
+If MaxBackups and MaxDays are both 0, no old log files will be deleted.
 
 ### func (\*Logger) Close
 

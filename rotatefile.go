@@ -33,7 +33,9 @@ const (
 )
 
 // ensure we always implement io.WriteCloser
-var _ io.WriteCloser = (*Logger)(nil)
+var _ interface {
+	io.WriteCloser
+} = (*Logger)(nil)
 
 // Logger is an io.WriteCloser that writes to the specified filename.
 //
@@ -89,6 +91,12 @@ type Logger struct {
 	// deleted.)
 	MaxBackups int `json:"maxBackups" yaml:"maxBackups"`
 
+	// TotalSizeCap 控制所有文件累积总大小
+	// 如果超过该大小，则从最早的文件开始删除，直到删除到当前文件为止
+	// 当前日志文件大小可以超过 TotalSizeCap
+	// 0 不控制
+	TotalSizeCap int64 `json:"totalSizeCap" yaml:"totalSizeCap"`
+
 	// UtcTime determines if the time used for formatting the timestamps in
 	// backup files is the computer's local time.  The default is to use UTC
 	// time.
@@ -105,6 +113,11 @@ type Logger struct {
 	millCh    chan bool
 	startMill sync.Once
 }
+
+const (
+	// TotalSizeCap1G  为 TotalSizeCap 1G 大小
+	TotalSizeCap1G = 1 * 1024 * 1024 * 1024
+)
 
 var (
 	// currentTime exists, so it can be mocked out by tests.
@@ -147,7 +160,14 @@ func (l *Logger) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
-// Close implements io.Closer, and closes the current logfile.
+// Size 返回当前文件大小.
+func (l *Logger) Size() int64 {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.size
+
+}
 func (l *Logger) Close() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -305,7 +325,7 @@ func (l *Logger) millRunOnce() error {
 		for _, f := range files {
 			// Only count the uncompressed log file or the
 			// compressed log file, not both.
-			fn := f.Name()
+			fn := f.Name
 			if strings.HasSuffix(fn, compressSuffix) {
 				fn = fn[:len(fn)-len(compressSuffix)]
 			}
@@ -336,23 +356,60 @@ func (l *Logger) millRunOnce() error {
 
 	if l.Compress {
 		for _, f := range files {
-			if !strings.HasSuffix(f.Name(), compressSuffix) {
+			if !strings.HasSuffix(f.Name, compressSuffix) {
 				compress = append(compress, f)
 			}
 		}
 	}
 
+	dir := l.dir()
 	for _, f := range remove {
-		errRemove := os.Remove(filepath.Join(l.dir(), f.Name()))
+		errRemove := os.Remove(filepath.Join(dir, f.Name))
 		if err == nil && errRemove != nil {
 			err = errRemove
 		}
 	}
 	for _, f := range compress {
-		fn := filepath.Join(l.dir(), f.Name())
+		fn := filepath.Join(dir, f.Name)
 		errCompress := compressLogFile(fn, fn+compressSuffix)
 		if err == nil && errCompress != nil {
 			err = errCompress
+		}
+	}
+
+	if errTotalSizeCap := l.keepTotalSizeCap(dir); errTotalSizeCap != nil && err == nil {
+		err = errTotalSizeCap
+	}
+
+	return err
+}
+
+func (l *Logger) keepTotalSizeCap(dir string) error {
+	if l.TotalSizeCap <= 0 {
+		return nil
+	}
+
+	files, err := l.oldLogFiles()
+	if err != nil {
+		return err
+	}
+
+	totalSize := l.Size()
+	for _, f := range files {
+		totalSize += f.Size
+	}
+
+	// 从最早的历史文件开始，删除历史文件，以控制总大小
+	for _, f := range files {
+		if totalSize <= l.TotalSizeCap {
+			break
+		}
+
+		if err1 := os.Remove(filepath.Join(dir, f.Name)); err1 == nil {
+			// 删除成功，从总大小中减去删除文件的大小
+			totalSize -= f.Size
+		} else if err == nil {
+			err = err1
 		}
 	}
 
@@ -383,6 +440,7 @@ func (l *Logger) mill() {
 
 // oldLogFiles returns the list of backup log files stored in the same
 // directory as the current log file, sorted by ModTime
+// 不包括当前正在写入的日志文件
 func (l *Logger) oldLogFiles() ([]logInfo, error) {
 	files, err := os.ReadDir(l.dir())
 	if err != nil {
@@ -396,12 +454,17 @@ func (l *Logger) oldLogFiles() ([]logInfo, error) {
 		if f.IsDir() {
 			continue
 		}
+		size := int64(0)
+		if info, _ := f.Info(); info != nil {
+			size = info.Size()
+		}
+
 		if t, err := l.timeFromName(f.Name(), prefix, ext); err == nil {
-			logFiles = append(logFiles, logInfo{t, f})
+			logFiles = append(logFiles, logInfo{timestamp: t, Name: f.Name(), Size: size})
 			continue
 		}
 		if t, err := l.timeFromName(f.Name(), prefix, ext+compressSuffix); err == nil {
-			logFiles = append(logFiles, logInfo{t, f})
+			logFiles = append(logFiles, logInfo{timestamp: t, Name: f.Name(), Size: size})
 			continue
 		}
 		// error parsing means that the suffix at the end was not generated
@@ -508,7 +571,8 @@ func compressLogFile(src, dst string) (err error) {
 // timestamp.
 type logInfo struct {
 	timestamp time.Time
-	os.DirEntry
+	Name      string
+	Size      int64
 }
 
 // byFormatTime sorts by newest time formatted in the name.

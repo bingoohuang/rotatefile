@@ -241,7 +241,6 @@ func TestMaxBackups(t *testing.T) {
 	// this will use the new fake time
 	thirdFilename := backupFile(dir)
 	existsWithContent(thirdFilename, b2, t)
-
 	existsWithContent(filename, b3, t)
 
 	// we need to wait a little bit since the files get deleted on a different
@@ -372,10 +371,10 @@ func TestCleanupExistingBackups(t *testing.T) {
 	fileCount(dir, 2, t)
 }
 
-func TestMaxAge(t *testing.T) {
+func TestMaxDays(t *testing.T) {
 	currentTime = fakeTime
 
-	dir := makeTempDir("TestMaxAge", t)
+	dir := makeTempDir("TestMaxDays", t)
 	defer os.RemoveAll(dir)
 
 	filename := logFile(dir)
@@ -487,10 +486,10 @@ func TestTimeFromName(t *testing.T) {
 		want     time.Time
 		wantErr  bool
 	}{
-		{"foo-2014-05-04T14-44-33.555.log", time.Date(2014, 5, 4, 14, 44, 33, 555000000, time.UTC), false},
-		{"foo-2014-05-04T14-44-33.555", time.Time{}, true},
-		{"2014-05-04T14-44-33.555.log", time.Time{}, true},
-		{"foo.log", time.Time{}, true},
+		{filename: "foo-2014-05-04T14-44-33.555.log", want: time.Date(2014, 5, 4, 14, 44, 33, 555000000, time.UTC)},
+		{filename: "foo-2014-05-04T14-44-33.555", wantErr: true},
+		{filename: "2014-05-04T14-44-33.555.log", wantErr: true},
+		{filename: "foo.log", wantErr: true},
 	}
 
 	for _, test := range tests {
@@ -535,7 +534,7 @@ func TestRotate(t *testing.T) {
 	l := &Logger{
 		Filename:   filename,
 		MaxBackups: 1,
-		MaxSize:    100, // megabytes
+		MaxSize:    100,
 		UtcTime:    true,
 	}
 	defer l.Close()
@@ -560,6 +559,63 @@ func TestRotate(t *testing.T) {
 	existsWithContent(filename2, b, t)
 	existsWithContent(filename, []byte{}, t)
 	fileCount(dir, 2, t)
+	newFakeTime()
+
+	err = l.Rotate()
+	isNil(err, t)
+
+	// we need to wait a little bit since the files get deleted on a different
+	// goroutine.
+	<-time.After(10 * time.Millisecond)
+
+	filename3 := backupFile(dir)
+	existsWithContent(filename3, []byte{}, t)
+	existsWithContent(filename, []byte{}, t)
+	fileCount(dir, 2, t)
+
+	b2 := []byte("foooooo!")
+	n, err = l.Write(b2)
+	isNil(err, t)
+	equals(len(b2), n, t)
+
+	// this will use the new fake time
+	existsWithContent(filename, b2, t)
+}
+
+func TestRotateTotalSizeCap(t *testing.T) {
+	currentTime = fakeTime
+	dir := makeTempDir("TestRotate", t)
+	defer os.RemoveAll(dir)
+
+	filename := logFile(dir)
+
+	l := &Logger{
+		Filename:     filename,
+		MaxBackups:   3,
+		MaxSize:      100,
+		UtcTime:      true,
+		TotalSizeCap: 3,
+	}
+	defer l.Close()
+	b := []byte("boo!")
+	n, err := l.Write(b)
+	isNil(err, t)
+	equals(len(b), n, t)
+
+	existsWithContent(filename, b, t)
+	fileCount(dir, 1, t)
+
+	newFakeTime()
+
+	err = l.Rotate()
+	isNil(err, t)
+
+	// we need to wait a little bit since the files get deleted on a different
+	// goroutine.
+	<-time.After(10 * time.Millisecond)
+
+	existsWithContent(filename, []byte{}, t)
+	fileCount(dir, 1, t)
 	newFakeTime()
 
 	err = l.Rotate()
