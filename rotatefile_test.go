@@ -198,12 +198,7 @@ func TestMaxBackups(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	filename := logFile(dir)
-	l := &File{
-		Filename:   filename,
-		MaxSize:    10,
-		MaxBackups: 1,
-		UtcTime:    true,
-	}
+	l := &File{Filename: filename, MaxSize: 10, MaxBackups: 1, UtcTime: true}
 	defer l.Close()
 	b := []byte("boo!")
 	n, err := l.Write(b)

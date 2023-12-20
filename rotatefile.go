@@ -17,6 +17,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"github.com/bingoohuang/rotatefile/disk"
 	"golang.org/x/term"
 	"io"
 	"os"
@@ -33,13 +34,13 @@ import (
 // filename like /var/log/myapp/foo.log
 func New(filename string) *File {
 	f := &File{
-		Filename:     filename,
-		MaxSize:      100 * M, // 最大100M
-		MaxBackups:   30,      // 最多30个历史备份
-		MaxDays:      30,      // 最多保留30天
-		TotalSizeCap: G,       // 最大总大小1G
-		Compress:     true,    // disabled by default
-
+		Filename:      filename,
+		MaxSize:       100 * MB,                    // 单个日志文件最大100M
+		MaxBackups:    30,                          // 最多30个历史备份
+		MaxDays:       30,                          // 最多保留30天
+		TotalSizeCap:  GB,                          // 最大总大小1G
+		Compress:      true,                        // 历史日志开启 Gzip 压缩
+		MinDiskFree:   100 * MB,                    // 最少 100M 空余
 		RotateSignals: []os.Signal{syscall.SIGHUP}, // 在收到 SIGHUP 时，滚动日志
 	}
 
@@ -51,10 +52,10 @@ func New(filename string) *File {
 }
 
 const (
-	// M is mega
-	M = 1024 * 1024
-	// G is giga
-	G = 1024 * M
+	// MB is mega
+	MB = 1024 * 1024
+	// GB is giga
+	GB = 1024 * MB
 
 	backupTimeFormat = "20060102T150405.000"
 	compressSuffix   = ".gz"
@@ -130,6 +131,9 @@ type File struct {
 	// 当前日志文件大小可以超过 TotalSizeCap
 	// 0 不控制
 	TotalSizeCap int64 `json:"totalSizeCap" yaml:"totalSizeCap"`
+
+	// MinDiskFree 日志文件所在磁盘分区最少空余
+	MinDiskFree uint64 `json:"minDiskFree" yaml:"minDiskFree"`
 
 	size      int64
 	startMill sync.Once
@@ -394,7 +398,7 @@ func (l *File) millRunOnce() error {
 		files = remaining
 	}
 	if l.MaxDays > 0 {
-		diff := time.Duration(int64(24*time.Hour) * int64(l.MaxDays))
+		diff := 24 * time.Hour * time.Duration(l.MaxDays)
 		cutoff := currentTime().Add(-diff)
 
 		var remaining []logInfo
@@ -432,8 +436,6 @@ func (l *File) millRunOnce() error {
 		}
 	}
 
-	files, _ = l.oldLogFiles()
-
 	if errTotalSizeCap := l.keepTotalSizeCap(dir); errTotalSizeCap != nil && err == nil {
 		err = errTotalSizeCap
 	}
@@ -450,7 +452,15 @@ func (l *File) debugf(format string, a ...interface{}) {
 }
 
 func (l *File) keepTotalSizeCap(dir string) error {
-	if l.TotalSizeCap <= 0 {
+	var dirDiskFree uint64
+
+	if l.MinDiskFree > 0 {
+		if dirDisk, err := disk.GetInfo(dir, false); err == nil {
+			dirDiskFree = dirDisk.Free
+		}
+	}
+
+	if l.TotalSizeCap <= 0 || (l.MinDiskFree > 0 && dirDiskFree >= l.MinDiskFree) {
 		return nil
 	}
 
@@ -466,13 +476,14 @@ func (l *File) keepTotalSizeCap(dir string) error {
 
 	// 从最早的历史文件开始，删除历史文件，以控制总大小
 	for _, f := range files {
-		if totalSize <= l.TotalSizeCap {
+		if totalSize <= l.TotalSizeCap && (l.MinDiskFree == 0 || dirDiskFree >= l.MinDiskFree) {
 			break
 		}
 
 		if err1 := os.Remove(filepath.Join(dir, f.Name)); err1 == nil {
 			// 删除成功，从总大小中减去删除文件的大小
 			totalSize -= f.Size
+			dirDiskFree += uint64(f.Size)
 		} else if err == nil {
 			err = err1
 		}
