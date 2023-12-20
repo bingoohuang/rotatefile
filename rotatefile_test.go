@@ -111,7 +111,7 @@ func TestMakeLogDir(t *testing.T) {
 func TestDefaultFilename(t *testing.T) {
 	currentTime = fakeTime
 	dir := os.TempDir()
-	filename := filepath.Join(dir, filepath.Base(os.Args[0])+"-rotatefile.log")
+	filename := filepath.Join(dir, filepath.Base(os.Args[0])+".log")
 	defer os.Remove(filename)
 	l := &File{}
 	defer l.Close()
@@ -486,9 +486,9 @@ func TestTimeFromName(t *testing.T) {
 		want     time.Time
 		wantErr  bool
 	}{
-		{filename: "foo-2014-05-04T14-44-33.555.log", want: time.Date(2014, 5, 4, 14, 44, 33, 555000000, time.UTC)},
-		{filename: "foo-2014-05-04T14-44-33.555", wantErr: true},
-		{filename: "2014-05-04T14-44-33.555.log", wantErr: true},
+		{filename: "foo.20140504T144433.555.log", want: time.Date(2014, 5, 4, 14, 44, 33, 555000000, time.UTC)},
+		{filename: "foo.20140504T144433.555", wantErr: true},
+		{filename: "20140504T144433.555.log", wantErr: true},
 		{filename: "foo.log", wantErr: true},
 	}
 
@@ -785,11 +785,11 @@ func logFile(dir string) string {
 }
 
 func backupFile(dir string) string {
-	return filepath.Join(dir, "foobar-"+fakeTime().UTC().Format(backupTimeFormat)+".log")
+	return filepath.Join(dir, "foobar."+fakeTime().UTC().Format(backupTimeFormat)+".log")
 }
 
 func backupFileLocal(dir string) string {
-	return filepath.Join(dir, "foobar-"+fakeTime().Format(backupTimeFormat)+".log")
+	return filepath.Join(dir, "foobar."+fakeTime().Format(backupTimeFormat)+".log")
 }
 
 // logFileLocal returns the log file name in the given directory for the current
@@ -800,7 +800,7 @@ func logFileLocal(dir string) string {
 
 // fileCount checks that the number of files in the directory is exp.
 func fileCount(dir string, exp int, t testing.TB) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	isNilUp(err, t, 1)
 	// Make sure no other files were created.
 	equalsUp(exp, len(files), t, 1)

@@ -56,7 +56,7 @@ const (
 	// G is giga
 	G = 1024 * M
 
-	backupTimeFormat = "2006-01-02T15-04-05.000"
+	backupTimeFormat = "20060102T150405.000"
 	compressSuffix   = ".gz"
 	defaultMaxSize   = 100 * 1024 * 1024
 )
@@ -83,10 +83,10 @@ var _ interface {
 // Backups use the log file name given to File, in the form
 // `name-timestamp.ext` where name is the filename without the extension,
 // timestamp is the time at which the log was rotated formatted with the
-// time.Time format of `2006-01-02T15-04-05.000` and the extension is the
+// time.Time format of `20060102T150405.000` and the extension is the
 // original extension.  For example, if your File.Filename is
 // `/var/log/foo/server.log`, a backup created at 6:30pm on Nov 11 2016 would
-// use the filename `/var/log/foo/server-2016-11-04T18-30-00.000.log`
+// use the filename `/var/log/foo/server.20161104T183000.000.log`
 //
 // # Cleaning Up Old Log Files
 //
@@ -103,8 +103,7 @@ type File struct {
 	millCh chan bool
 
 	// Filename is the file to write logs to.  Backup log files will be retained
-	// in the same directory.  It uses <processname>-rotatefile.log in
-	// os.TempDir() if empty.
+	// in the same directory.  It uses <processname>.log in os.TempDir() if empty.
 	Filename string `json:"filename" yaml:"filename"`
 
 	// RotateSignals 设置滚动日志的信号
@@ -298,7 +297,7 @@ func backupName(name string, utc bool) string {
 	}
 
 	timestamp := t.Format(backupTimeFormat)
-	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
+	return filepath.Join(dir, fmt.Sprintf("%s.%s%s", prefix, timestamp, ext))
 }
 
 // openExistingOrNew opens the logfile if it exists and if the current write
@@ -341,7 +340,7 @@ func (l *File) filename() string {
 	if l.Filename != "" {
 		return l.Filename
 	}
-	name := filepath.Base(os.Args[0]) + "-rotatefile.log"
+	name := filepath.Base(os.Args[0]) + ".log"
 	return filepath.Join(os.TempDir(), name)
 }
 
@@ -383,7 +382,7 @@ func (l *File) millRunOnce() error {
 	}
 	if l.MaxDays > 0 {
 		diff := time.Duration(int64(24*time.Hour) * int64(l.MaxDays))
-		cutoff := currentTime().Add(-1 * diff)
+		cutoff := currentTime().Add(-diff)
 
 		var remaining []logInfo
 		for _, f := range files {
@@ -406,7 +405,8 @@ func (l *File) millRunOnce() error {
 
 	dir := l.dir()
 	for _, f := range remove {
-		errRemove := os.Remove(filepath.Join(dir, f.Name))
+		removeFile := filepath.Join(dir, f.Name)
+		errRemove := os.Remove(removeFile)
 		if err == nil && errRemove != nil {
 			err = errRemove
 		}
@@ -419,11 +419,21 @@ func (l *File) millRunOnce() error {
 		}
 	}
 
+	files, _ = l.oldLogFiles()
+
 	if errTotalSizeCap := l.keepTotalSizeCap(dir); errTotalSizeCap != nil && err == nil {
 		err = errTotalSizeCap
 	}
 
 	return err
+}
+
+func (l *File) debugf(format string, a ...interface{}) {
+	s := fmt.Sprintf(format, a...)
+	if !strings.HasSuffix(s, "\n") {
+		s = s + "\n"
+	}
+	os.Stderr.WriteString(s)
 }
 
 func (l *File) keepTotalSizeCap(dir string) error {
@@ -529,7 +539,9 @@ func (l *File) oldLogFiles() ([]logInfo, error) {
 		// by rotatefile, and therefore it's not a backup file.
 	}
 
-	sort.Sort(byFormatTime(logFiles))
+	sort.Slice(logFiles, func(i, j int) bool {
+		return logFiles[i].timestamp.After(logFiles[j].timestamp)
+	})
 
 	return logFiles, nil
 }
@@ -538,13 +550,15 @@ func (l *File) oldLogFiles() ([]logInfo, error) {
 // the filename's prefix and extension. This prevents someone's filename from
 // confusing time.parse.
 func (l *File) timeFromName(filename, prefix, ext string) (time.Time, error) {
-	if !strings.HasPrefix(filename, prefix) {
-		return time.Time{}, errors.New("mismatched prefix")
-	}
 	if !strings.HasSuffix(filename, ext) {
 		return time.Time{}, errors.New("mismatched extension")
 	}
-	ts := filename[len(prefix) : len(filename)-len(ext)]
+	filename = filename[:len(filename)-len(ext)]
+	if !strings.HasPrefix(filename, prefix) {
+		return time.Time{}, errors.New("mismatched prefix")
+	}
+
+	ts := filename[len(prefix):]
 	return time.Parse(backupTimeFormat, ts)
 }
 
@@ -566,7 +580,7 @@ func (l *File) dir() string {
 func (l *File) prefixAndExt() (prefix, ext string) {
 	filename := filepath.Base(l.filename())
 	ext = filepath.Ext(filename)
-	prefix = filename[:len(filename)-len(ext)] + "-"
+	prefix = filename[:len(filename)-len(ext)] + "."
 	return prefix, ext
 }
 
@@ -614,7 +628,6 @@ func compressLogFile(src, dst string) (err error) {
 	if err := gzf.Close(); err != nil {
 		return err
 	}
-
 	if err := f.Close(); err != nil {
 		return err
 	}
@@ -631,19 +644,4 @@ type logInfo struct {
 	timestamp time.Time
 	Name      string
 	Size      int64
-}
-
-// byFormatTime sorts by newest time formatted in the name.
-type byFormatTime []logInfo
-
-func (b byFormatTime) Less(i, j int) bool {
-	return b[i].timestamp.After(b[j].timestamp)
-}
-
-func (b byFormatTime) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-func (b byFormatTime) Len() int {
-	return len(b)
 }
