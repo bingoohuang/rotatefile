@@ -17,8 +17,6 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"github.com/bingoohuang/rotatefile/disk"
-	"golang.org/x/term"
 	"io"
 	"os"
 	"os/signal"
@@ -28,6 +26,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/bingoohuang/rotatefile/disk"
+	"golang.org/x/term"
 )
 
 // New creates a new File with default settings.
@@ -100,8 +101,10 @@ var _ interface {
 //
 // If MaxBackups and MaxDays are both 0, no old log files will be deleted.
 type File struct {
-	file   *os.File
-	millCh chan bool
+	// CopyWriter copy the writes.
+	CopyWriter io.Writer
+	file       *os.File
+	millCh     chan bool
 
 	// Filename is the file to write logs to.  Backup log files will be retained
 	// in the same directory.  It uses <processname>.log in os.TempDir() if empty.
@@ -147,9 +150,6 @@ type File struct {
 	// Compress determines if the rotated log files should be compressed
 	// using gzip. The default is not to perform compression.
 	Compress bool `json:"compress" yaml:"compress"`
-
-	// CopyWriter copy the writes.
-	CopyWriter io.Writer
 }
 
 var (
@@ -446,7 +446,7 @@ func (l *File) millRunOnce() error {
 func (l *File) debugf(format string, a ...interface{}) {
 	s := fmt.Sprintf(format, a...)
 	if !strings.HasSuffix(s, "\n") {
-		s = s + "\n"
+		s += "\n"
 	}
 	os.Stderr.WriteString(s)
 }

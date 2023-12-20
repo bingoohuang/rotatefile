@@ -27,17 +27,17 @@ package disk
 // Minor - minor dev id
 // Devname - device name
 type Info struct {
+	Rotational *bool
+	FSType     string
+	Name       string
 	Total      uint64
 	Free       uint64
 	Used       uint64
 	Files      uint64
 	Ffree      uint64
-	FSType     string
+	NRRequests uint64
 	Major      uint32
 	Minor      uint32
-	Name       string
-	Rotational *bool
-	NRRequests uint64
 }
 
 // DevID is the drive major and minor ids
