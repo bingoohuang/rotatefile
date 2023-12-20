@@ -2,7 +2,7 @@
 
 rotatefile a Go package for writing logs to rolling files.
 
-package rotatefile provides a rolling logger.
+package rotatefile provides a rolling rotatefile.File.
 
 rotatefile is intended to be one part of a logging infrastructure.
 It is not an all-in-one solution, but instead is a pluggable
@@ -28,26 +28,31 @@ package main
 
 import (
 	"log"
+	"os"
+	"syscall"
 
 	"github.com/bingoohuang/rotatefile"
 )
 
 func init() {
-	log.SetOutput(&rotatefile.Logger{
+	log.SetOutput(&rotatefile.File{
 		Filename:     "/var/log/myapp/foo.log",
 		MaxSize:      100 * 1024 * 1024,  // 最大100M
 		MaxBackups:   30,                 // 最多30个历史备份
 		MaxDays:      30,                 // 最多保留30天
 		TotalSizeCap: 1024 * 1024 * 1024, // 最大总大小1G
 		Compress:     true,               // disabled by default
+
+		RotateSignals: []os.Signal{syscall.SIGHUP}, // 在收到 SIGHUP 时，滚动日志
 	})
 }
+
 ```
 
-## type Logger
+## type rotatefile.File
 
 ``` go
-type Logger struct {
+type File struct {
     // Filename is the file to write logs to.  Backup log files will be retained
     // in the same directory.  It uses <processname>-rotatefile.log in
     // os.TempDir() if empty.
@@ -88,9 +93,9 @@ type Logger struct {
 }
 ```
 
-Logger is an io.WriteCloser that writes to the specified filename.
+rotatefile.File is an io.WriteCloser that writes to the specified filename.
 
-Logger opens or creates the logfile on first Write. If the file exists and
+rotatefile.File opens or creates the logfile on first Write. If the file exists and
 is less than MaxSize megabytes, rotatefile will open and append to that file.
 If the file exists and its size is >= MaxSize megabytes, the file is renamed
 by putting the current time in a timestamp in the name immediately before the
@@ -99,14 +104,14 @@ log file is then created using original filename.
 
 Whenever a write would cause the current log file exceed MaxSize megabytes,
 the current file is closed, renamed, and a new log file created with the
-original name. Thus, the filename you give Logger is always the "current" log
+original name. Thus, the filename you give rotatefile.File is always the "current" log
 file.
 
-Backups use the log file name given to Logger, in the form `name-timestamp.ext`
+Backups use the log file name given to rotatefile.File, in the form `name-timestamp.ext`
 where name is the filename without the extension, timestamp is the time at which
 the log was rotated formatted with the time.Time format of
 `2006-01-02T15-04-05.000` and the extension is the original extension. For
-example, if your Logger.Filename is `/var/log/foo/server.log`, a backup created
+example, if your rotatefile.File.Filename is `/var/log/foo/server.log`, a backup created
 at 6:30pm on Nov 11 2016 would use the filename
 `/var/log/foo/server-2016-11-04T18-30-00.000.log`
 
@@ -121,50 +126,31 @@ time, which may differ from the last time that file was written to.
 
 If MaxBackups and MaxDays are both 0, no old log files will be deleted.
 
-### func (\*Logger) Close
+### func (\*rotatefile.File) Close
 
 ``` go
-func (l *Logger) Close() error
+func (l *rotatefile.File) Close() error
 ```
 
 Close implements io.Closer, and closes the current logfile.
 
-### func (\*Logger) Rotate
+### func (\*rotatefile.File) Rotate
 
 ``` go
-func (l *Logger) Rotate() error
+func (l *rotatefile.File) Rotate() error
 ```
 
-Rotate causes Logger to close the existing log file and immediately create a
+Rotate causes rotatefile.File to close the existing log file and immediately create a
 new one. This is a helper function for applications that want to initiate
 rotations outside of the normal rotation rules, such as in response to
 SIGHUP. After rotating, this initiates a cleanup of old log files according
 to the normal rules.
 
-**Example**
 
-Example of how to rotate in response to SIGHUP.
-
-Code:
-
-```go
-l := &rotatefile.logger{}
-log.SetOutput(l)
-c := make(chan os.Signal, 1)
-signal.Notify(c, syscall.SIGHUP)
-
-go func () {
-for {
-<-c
-l.Rotate()
-}
-}()
-```
-
-### func (\*Logger) Write
+### func (\*rotatefile.File) Write
 
 ``` go
-func (l *Logger) Write(p []byte) (n int, err error)
+func (l *rotatefile.File) Write(p []byte) (n int, err error)
 ```
 
 Write implements io.Writer. If a write would cause the log file to be larger

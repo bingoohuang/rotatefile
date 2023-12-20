@@ -32,7 +32,7 @@ func TestNewFile(t *testing.T) {
 
 	dir := makeTempDir("TestNewFile", t)
 	defer os.RemoveAll(dir)
-	l := &Logger{
+	l := &File{
 		Filename: logFile(dir),
 	}
 	defer l.Close()
@@ -51,11 +51,11 @@ func TestOpenExisting(t *testing.T) {
 
 	filename := logFile(dir)
 	data := []byte("foo!")
-	err := os.WriteFile(filename, data, 0644)
+	err := os.WriteFile(filename, data, 0o644)
 	isNil(err, t)
 	existsWithContent(filename, data, t)
 
-	l := &Logger{
+	l := &File{
 		Filename: filename,
 	}
 	defer l.Close()
@@ -75,7 +75,7 @@ func TestWriteTooLong(t *testing.T) {
 	currentTime = fakeTime
 	dir := makeTempDir("TestWriteTooLong", t)
 	defer os.RemoveAll(dir)
-	l := &Logger{
+	l := &File{
 		Filename: logFile(dir),
 		MaxSize:  5,
 	}
@@ -87,7 +87,7 @@ func TestWriteTooLong(t *testing.T) {
 	equals(err.Error(),
 		fmt.Sprintf("write length %d exceeds maximum file size %d", len(b), l.MaxSize), t)
 	_, err = os.Stat(logFile(dir))
-	assert(os.IsNotExist(err), t, "Logger exists, but should not have been created")
+	assert(os.IsNotExist(err), t, "File exists, but should not have been created")
 }
 
 func TestMakeLogDir(t *testing.T) {
@@ -96,7 +96,7 @@ func TestMakeLogDir(t *testing.T) {
 	dir = filepath.Join(os.TempDir(), dir)
 	defer os.RemoveAll(dir)
 	filename := logFile(dir)
-	l := &Logger{
+	l := &File{
 		Filename: filename,
 	}
 	defer l.Close()
@@ -113,7 +113,7 @@ func TestDefaultFilename(t *testing.T) {
 	dir := os.TempDir()
 	filename := filepath.Join(dir, filepath.Base(os.Args[0])+"-rotatefile.log")
 	defer os.Remove(filename)
-	l := &Logger{}
+	l := &File{}
 	defer l.Close()
 	b := []byte("boo!")
 	n, err := l.Write(b)
@@ -130,7 +130,7 @@ func TestAutoRotate(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	filename := logFile(dir)
-	l := &Logger{
+	l := &File{
 		Filename: filename,
 		MaxSize:  10,
 		UtcTime:  true,
@@ -167,7 +167,7 @@ func TestFirstWriteRotate(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	filename := logFile(dir)
-	l := &Logger{
+	l := &File{
 		Filename: filename,
 		MaxSize:  10,
 		UtcTime:  true,
@@ -175,7 +175,7 @@ func TestFirstWriteRotate(t *testing.T) {
 	defer l.Close()
 
 	start := []byte("boooooo!")
-	err := os.WriteFile(filename, start, 0600)
+	err := os.WriteFile(filename, start, 0o600)
 	isNil(err, t)
 
 	newFakeTime()
@@ -198,7 +198,7 @@ func TestMaxBackups(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	filename := logFile(dir)
-	l := &Logger{
+	l := &File{
 		Filename:   filename,
 		MaxSize:    10,
 		MaxBackups: 1,
@@ -263,13 +263,13 @@ func TestMaxBackups(t *testing.T) {
 	// create a file that is close to but different from the logfile name.
 	// It shouldn't get caught by our deletion filters.
 	notlogfile := logFile(dir) + ".foo"
-	err = os.WriteFile(notlogfile, []byte("data"), 0644)
+	err = os.WriteFile(notlogfile, []byte("data"), 0o644)
 	isNil(err, t)
 
 	// Make a directory that exactly matches our log file filters... it still
 	// shouldn't get caught by the deletion filter since it's a directory.
 	notlogfiledir := backupFile(dir)
-	err = os.Mkdir(notlogfiledir, 0700)
+	err = os.Mkdir(notlogfiledir, 0o700)
 	isNil(err, t)
 
 	newFakeTime()
@@ -281,7 +281,7 @@ func TestMaxBackups(t *testing.T) {
 	// not be counted since both the compressed and the uncompressed
 	// log files still exist.
 	compLogFile := fourthFilename + compressSuffix
-	err = os.WriteFile(compLogFile, []byte("compress"), 0644)
+	err = os.WriteFile(compLogFile, []byte("compress"), 0o644)
 	isNil(err, t)
 
 	// this will make us rotate again
@@ -329,27 +329,27 @@ func TestCleanupExistingBackups(t *testing.T) {
 
 	data := []byte("data")
 	backup := backupFile(dir)
-	err := os.WriteFile(backup, data, 0644)
+	err := os.WriteFile(backup, data, 0o644)
 	isNil(err, t)
 
 	newFakeTime()
 
 	backup = backupFile(dir)
-	err = os.WriteFile(backup+compressSuffix, data, 0644)
+	err = os.WriteFile(backup+compressSuffix, data, 0o644)
 	isNil(err, t)
 
 	newFakeTime()
 
 	backup = backupFile(dir)
-	err = os.WriteFile(backup, data, 0644)
+	err = os.WriteFile(backup, data, 0o644)
 	isNil(err, t)
 
 	// now create a primary log file with some data
 	filename := logFile(dir)
-	err = os.WriteFile(filename, data, 0644)
+	err = os.WriteFile(filename, data, 0o644)
 	isNil(err, t)
 
-	l := &Logger{
+	l := &File{
 		Filename:   filename,
 		MaxSize:    10,
 		MaxBackups: 1,
@@ -378,7 +378,7 @@ func TestMaxDays(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	filename := logFile(dir)
-	l := &Logger{
+	l := &File{
 		Filename: filename,
 		MaxSize:  10,
 		MaxDays:  1,
@@ -446,7 +446,7 @@ func TestOldLogFiles(t *testing.T) {
 
 	filename := logFile(dir)
 	data := []byte("data")
-	err := os.WriteFile(filename, data, 07)
+	err := os.WriteFile(filename, data, 0o7)
 	isNil(err, t)
 
 	// This gives us a time with the same precision as the time we get from the
@@ -455,7 +455,7 @@ func TestOldLogFiles(t *testing.T) {
 	isNil(err, t)
 
 	backup := backupFile(dir)
-	err = os.WriteFile(backup, data, 07)
+	err = os.WriteFile(backup, data, 0o7)
 	isNil(err, t)
 
 	newFakeTime()
@@ -464,10 +464,10 @@ func TestOldLogFiles(t *testing.T) {
 	isNil(err, t)
 
 	backup2 := backupFile(dir)
-	err = os.WriteFile(backup2, data, 07)
+	err = os.WriteFile(backup2, data, 0o7)
 	isNil(err, t)
 
-	l := &Logger{Filename: filename}
+	l := &File{Filename: filename}
 	files, err := l.oldLogFiles()
 	isNil(err, t)
 	equals(2, len(files), t)
@@ -478,7 +478,7 @@ func TestOldLogFiles(t *testing.T) {
 }
 
 func TestTimeFromName(t *testing.T) {
-	l := &Logger{Filename: "/var/log/myfoo/foo.log"}
+	l := &File{Filename: "/var/log/myfoo/foo.log"}
 	prefix, ext := l.prefixAndExt()
 
 	tests := []struct {
@@ -505,7 +505,7 @@ func TestLocalTime(t *testing.T) {
 	dir := makeTempDir("TestLocalTime", t)
 	defer os.RemoveAll(dir)
 
-	l := &Logger{
+	l := &File{
 		Filename: logFile(dir),
 		MaxSize:  10,
 	}
@@ -531,7 +531,7 @@ func TestRotate(t *testing.T) {
 
 	filename := logFile(dir)
 
-	l := &Logger{
+	l := &File{
 		Filename:   filename,
 		MaxBackups: 1,
 		MaxSize:    100,
@@ -589,7 +589,7 @@ func TestRotateTotalSizeCap(t *testing.T) {
 
 	filename := logFile(dir)
 
-	l := &Logger{
+	l := &File{
 		Filename:     filename,
 		MaxBackups:   3,
 		MaxSize:      100,
@@ -646,7 +646,7 @@ func TestCompressOnRotate(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	filename := logFile(dir)
-	l := &Logger{
+	l := &File{
 		Compress: true,
 		Filename: filename,
 		MaxSize:  10,
@@ -695,7 +695,7 @@ func TestCompressOnResume(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	filename := logFile(dir)
-	l := &Logger{
+	l := &File{
 		Compress: true,
 		Filename: filename,
 		MaxSize:  10,
@@ -705,9 +705,9 @@ func TestCompressOnResume(t *testing.T) {
 	// Create a backup file and empty "compressed" file.
 	filename2 := backupFile(dir)
 	b := []byte("foo!")
-	err := os.WriteFile(filename2, b, 0644)
+	err := os.WriteFile(filename2, b, 0o644)
 	isNil(err, t)
-	err = os.WriteFile(filename2+compressSuffix, []byte{}, 0644)
+	err = os.WriteFile(filename2+compressSuffix, []byte{}, 0o644)
 	isNil(err, t)
 
 	newFakeTime()
@@ -746,7 +746,7 @@ func TestJson(t *testing.T) {
 	"compress": true
 }`[1:])
 
-	l := Logger{}
+	l := File{}
 	err := json.Unmarshal(data, &l)
 	isNil(err, t)
 	equals("foo", l.Filename, t)
@@ -763,7 +763,7 @@ func TestJson(t *testing.T) {
 func makeTempDir(name string, t testing.TB) string {
 	dir := time.Now().Format(name + backupTimeFormat)
 	dir = filepath.Join(os.TempDir(), dir)
-	isNilUp(os.Mkdir(dir, 0700), t, 1)
+	isNilUp(os.Mkdir(dir, 0o700), t, 1)
 	return dir
 }
 

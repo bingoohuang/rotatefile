@@ -7,7 +7,7 @@ import (
 // To use rotatefile with the standard library's log package, just pass it into
 // the SetOutput function when your application starts.
 func Example() {
-	log.SetOutput(&Logger{
+	log.SetOutput(&File{
 		Filename:   "/var/log/myapp/foo.log",
 		MaxSize:    500, // megabytes
 		MaxBackups: 3,

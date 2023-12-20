@@ -19,14 +19,36 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
+// New creates a new File with default settings.
+// filename like /var/log/myapp/foo.log
+func New(filename string) *File {
+	return &File{
+		Filename:     filename,
+		MaxSize:      100 * M, // 最大100M
+		MaxBackups:   30,      // 最多30个历史备份
+		MaxDays:      30,      // 最多保留30天
+		TotalSizeCap: G,       // 最大总大小1G
+		Compress:     true,    // disabled by default
+
+		RotateSignals: []os.Signal{syscall.SIGHUP}, // 在收到 SIGHUP 时，滚动日志
+	}
+}
+
 const (
+	// M is mega
+	M = 1024 * 1024
+	// G is giga
+	G = 1024 * M
+
 	backupTimeFormat = "2006-01-02T15-04-05.000"
 	compressSuffix   = ".gz"
 	defaultMaxSize   = 100 * 1024 * 1024
@@ -35,11 +57,11 @@ const (
 // ensure we always implement io.WriteCloser
 var _ interface {
 	io.WriteCloser
-} = (*Logger)(nil)
+} = (*File)(nil)
 
-// Logger is an io.WriteCloser that writes to the specified filename.
+// File is an io.WriteCloser that writes to the specified filename.
 //
-// Logger opens or creates the logfile on first Write.  If the file exists and
+// File opens or creates the logfile on first Write.  If the file exists and
 // is less than MaxSize megabytes, rotatefile will open and append to that file.
 // If the file exists and its size is >= MaxSize megabytes, the file is renamed
 // by putting the current time in a timestamp in the name immediately before the
@@ -48,14 +70,14 @@ var _ interface {
 //
 // Whenever a write would cause the current log file exceed MaxSize megabytes,
 // the current file is closed, renamed, and a new log file created with the
-// original name. Thus, the filename you give Logger is always the "current" log
+// original name. Thus, the filename you give File is always the "current" log
 // file.
 //
-// Backups use the log file name given to Logger, in the form
+// Backups use the log file name given to File, in the form
 // `name-timestamp.ext` where name is the filename without the extension,
 // timestamp is the time at which the log was rotated formatted with the
 // time.Time format of `2006-01-02T15-04-05.000` and the extension is the
-// original extension.  For example, if your Logger.Filename is
+// original extension.  For example, if your File.Filename is
 // `/var/log/foo/server.log`, a backup created at 6:30pm on Nov 11 2016 would
 // use the filename `/var/log/foo/server-2016-11-04T18-30-00.000.log`
 //
@@ -69,11 +91,17 @@ var _ interface {
 // time, which may differ from the last time that file was written to.
 //
 // If MaxBackups and MaxDays are both 0, no old log files will be deleted.
-type Logger struct {
+type File struct {
+	file   *os.File
+	millCh chan bool
+
 	// Filename is the file to write logs to.  Backup log files will be retained
 	// in the same directory.  It uses <processname>-rotatefile.log in
 	// os.TempDir() if empty.
 	Filename string `json:"filename" yaml:"filename"`
+
+	// RotateSignals 设置滚动日志的信号
+	RotateSignals []os.Signal
 
 	// MaxSize is the maximum size of the log file before it gets
 	// rotated. It defaults to 100 megabytes.
@@ -97,6 +125,10 @@ type Logger struct {
 	// 0 不控制
 	TotalSizeCap int64 `json:"totalSizeCap" yaml:"totalSizeCap"`
 
+	size      int64
+	startMill sync.Once
+	mu        sync.Mutex
+
 	// UtcTime determines if the time used for formatting the timestamps in
 	// backup files is the computer's local time.  The default is to use UTC
 	// time.
@@ -105,19 +137,7 @@ type Logger struct {
 	// Compress determines if the rotated log files should be compressed
 	// using gzip. The default is not to perform compression.
 	Compress bool `json:"compress" yaml:"compress"`
-
-	size int64
-	file *os.File
-	mu   sync.Mutex
-
-	millCh    chan bool
-	startMill sync.Once
 }
-
-const (
-	// TotalSizeCap1G  为 TotalSizeCap 1G 大小
-	TotalSizeCap1G = 1 * 1024 * 1024 * 1024
-)
 
 var (
 	// currentTime exists, so it can be mocked out by tests.
@@ -131,7 +151,7 @@ var (
 // than MaxSize, the file is closed, renamed to include a timestamp of the
 // current time, and a new log file is created using the original log file name.
 // If the length of to write is greater than MaxSize, an error is returned.
-func (l *Logger) Write(p []byte) (n int, err error) {
+func (l *File) Write(p []byte) (n int, err error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -161,21 +181,21 @@ func (l *Logger) Write(p []byte) (n int, err error) {
 }
 
 // Size 返回当前文件大小.
-func (l *Logger) Size() int64 {
+func (l *File) Size() int64 {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	return l.size
-
 }
-func (l *Logger) Close() error {
+
+func (l *File) Close() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.close()
 }
 
 // close closes the file if it is open.
-func (l *Logger) close() error {
+func (l *File) close() error {
 	if l.file == nil {
 		return nil
 	}
@@ -184,12 +204,12 @@ func (l *Logger) close() error {
 	return err
 }
 
-// Rotate causes Logger to close the existing log file and immediately create a
+// Rotate causes File to close the existing log file and immediately create a
 // new one.  This is a helper function for applications that want to initiate
 // rotations outside the normal rotation rules, such as in response to
 // SIGHUP.  After rotating, this initiates compression and removal of old log
 // files according to the configuration.
-func (l *Logger) Rotate() error {
+func (l *File) Rotate() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.rotate()
@@ -198,7 +218,7 @@ func (l *Logger) Rotate() error {
 // rotate closes the current file, moves it aside with a timestamp in the name,
 // (if it exists), opens a new file with the original filename, and then runs
 // post-rotation processing and removal.
-func (l *Logger) rotate() error {
+func (l *File) rotate() error {
 	if err := l.close(); err != nil {
 		return err
 	}
@@ -211,16 +231,16 @@ func (l *Logger) rotate() error {
 
 // openNew opens a new log file for writing, moving any old log file out of the
 // way.  These methods assume the file has already been closed.
-func (l *Logger) openNew() error {
-	err := os.MkdirAll(l.dir(), 0755)
+func (l *File) openNew() error {
+	err := os.MkdirAll(l.dir(), 0o755)
 	if err != nil {
 		return fmt.Errorf("can't make directories for new logfile: %s", err)
 	}
 
 	name := l.filename()
-	mode := os.FileMode(0600)
+	mode := os.FileMode(0o600)
 	info, err := osStat(name)
-	if err == nil {
+	if info != nil {
 		// Copy the mode off the old logfile.
 		mode = info.Mode()
 		// move the existing file
@@ -267,7 +287,7 @@ func backupName(name string, utc bool) string {
 // openExistingOrNew opens the logfile if it exists and if the current write
 // would not put it over MaxSize.  If there is no such file or the write would
 // put it over the MaxSize, a new file is created.
-func (l *Logger) openExistingOrNew(writeLen int) error {
+func (l *File) openExistingOrNew(writeLen int) error {
 	l.mill()
 
 	filename := l.filename()
@@ -279,23 +299,28 @@ func (l *Logger) openExistingOrNew(writeLen int) error {
 		return fmt.Errorf("error getting log file info: %s", err)
 	}
 
-	if info.Size()+int64(writeLen) >= l.max() {
+	var size int64
+	if info != nil {
+		size = info.Size()
+	}
+
+	if size+int64(writeLen) >= l.max() {
 		return l.rotate()
 	}
 
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		// if we fail to open the old log file for some reason, just ignore
 		// it and open a new log file.
 		return l.openNew()
 	}
 	l.file = file
-	l.size = info.Size()
+	l.size = size
 	return nil
 }
 
 // filename generates the name of the logfile from the current time.
-func (l *Logger) filename() string {
+func (l *File) filename() string {
 	if l.Filename != "" {
 		return l.Filename
 	}
@@ -307,7 +332,7 @@ func (l *Logger) filename() string {
 // Log files are compressed if enabled via configuration and old log
 // files are removed, keeping at most l.MaxBackups files, as long as
 // none of them are older than MaxDays.
-func (l *Logger) millRunOnce() error {
+func (l *File) millRunOnce() error {
 	if l.MaxBackups == 0 && l.MaxDays == 0 && !l.Compress {
 		return nil
 	}
@@ -384,7 +409,7 @@ func (l *Logger) millRunOnce() error {
 	return err
 }
 
-func (l *Logger) keepTotalSizeCap(dir string) error {
+func (l *File) keepTotalSizeCap(dir string) error {
 	if l.TotalSizeCap <= 0 {
 		return nil
 	}
@@ -418,7 +443,7 @@ func (l *Logger) keepTotalSizeCap(dir string) error {
 
 // millRun runs in a goroutine to manage post-rotation compression and removal
 // of old log files.
-func (l *Logger) millRun() {
+func (l *File) millRun() {
 	for range l.millCh {
 		// what am I going to do, log this?
 		_ = l.millRunOnce()
@@ -427,8 +452,9 @@ func (l *Logger) millRun() {
 
 // mill performs post-rotation compression and removal of stale log files,
 // starting the mill goroutine if necessary.
-func (l *Logger) mill() {
+func (l *File) mill() {
 	l.startMill.Do(func() {
+		l.signalRotate()
 		l.millCh = make(chan bool, 1)
 		go l.millRun()
 	})
@@ -438,10 +464,25 @@ func (l *Logger) mill() {
 	}
 }
 
+func (l *File) signalRotate() {
+	if len(l.RotateSignals) == 0 {
+		return
+	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, l.RotateSignals...)
+
+	go func() {
+		for range c {
+			l.Rotate()
+		}
+	}()
+}
+
 // oldLogFiles returns the list of backup log files stored in the same
 // directory as the current log file, sorted by ModTime
 // 不包括当前正在写入的日志文件
-func (l *Logger) oldLogFiles() ([]logInfo, error) {
+func (l *File) oldLogFiles() ([]logInfo, error) {
 	files, err := os.ReadDir(l.dir())
 	if err != nil {
 		return nil, fmt.Errorf("can't read log file directory: %s", err)
@@ -479,7 +520,7 @@ func (l *Logger) oldLogFiles() ([]logInfo, error) {
 // timeFromName extracts the formatted time from the filename by stripping off
 // the filename's prefix and extension. This prevents someone's filename from
 // confusing time.parse.
-func (l *Logger) timeFromName(filename, prefix, ext string) (time.Time, error) {
+func (l *File) timeFromName(filename, prefix, ext string) (time.Time, error) {
 	if !strings.HasPrefix(filename, prefix) {
 		return time.Time{}, errors.New("mismatched prefix")
 	}
@@ -491,7 +532,7 @@ func (l *Logger) timeFromName(filename, prefix, ext string) (time.Time, error) {
 }
 
 // max returns the maximum size in bytes of log files before rolling.
-func (l *Logger) max() int64 {
+func (l *File) max() int64 {
 	if l.MaxSize == 0 {
 		return defaultMaxSize
 	}
@@ -499,13 +540,13 @@ func (l *Logger) max() int64 {
 }
 
 // dir returns the directory for the current filename.
-func (l *Logger) dir() string {
+func (l *File) dir() string {
 	return filepath.Dir(l.filename())
 }
 
-// prefixAndExt returns the filename part and extension part from the Logger's
+// prefixAndExt returns the filename part and extension part from the File's
 // filename.
-func (l *Logger) prefixAndExt() (prefix, ext string) {
+func (l *File) prefixAndExt() (prefix, ext string) {
 	filename := filepath.Base(l.filename())
 	ext = filepath.Ext(filename)
 	prefix = filename[:len(filename)-len(ext)] + "-"
