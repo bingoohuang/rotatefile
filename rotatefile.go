@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -359,6 +360,25 @@ func (l *File) filename() string {
 	}
 	name := filepath.Base(os.Args[0]) + ".log"
 	return filepath.Join(os.TempDir(), name)
+}
+
+var currentDirBase = func() string {
+	wd, _ := os.Getwd()
+	if wd != "" {
+		return "_" + filepath.Base(wd)
+	}
+	return ""
+}()
+
+// HomeDir 返回当前用户的主目录
+// 注意：有可能有的Linux用户没有主目录，此时，日志文件可能需要产生在 /var/log 目录下
+func HomeDir() (string, error) {
+	u, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+
+	return u.HomeDir, nil
 }
 
 // millRunOnce performs compression and removal of stale log files.
