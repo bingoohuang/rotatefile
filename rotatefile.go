@@ -557,19 +557,16 @@ func (l *file) openExistingOrNew(writeLen int) error {
 
 // setFileName generates the name of the logfile from the current time.
 func (l *file) setFileName() {
-	logDir := ""
-	if l.Filename != "" {
-		if strings.HasSuffix(l.Filename, ".log") {
-			// 配置的是具体的日志文件名称（推荐的配置）
-			l.filename = l.Filename
-			l.dir = filepath.Dir(l.filename)
-			return
-		}
-		// 否则当做日志路径看待，日志文件名自动补全
-		logDir = l.Filename
+	if strings.HasSuffix(l.Filename, ".log") {
+		// 配置的是具体的日志文件名称（推荐的配置）
+		l.filename = l.Filename
+		l.dir = filepath.Dir(l.filename)
+		writeLogFile(l.filename)
+		return
 	}
 
-	l.filename = getLogFileName(logDir)
+	// 否则当做日志路径看待，日志文件名自动补全
+	l.filename = getLogFileName(l.Filename)
 	l.dir = filepath.Dir(l.filename)
 }
 
@@ -578,14 +575,16 @@ func getLogFileName(logDir string) string {
 	if p := FindLogDir(logDir); p != "" {
 		appName := filepath.Base(os.Args[0])
 		logFileName := filepath.Join(p, appName+currentDirBase+".log")
-
-		logdirFile := filepath.Join(os.TempDir(), strconv.Itoa(os.Getpid())+".logfile")
-		_ = os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm)
-
+		writeLogFile(logFileName)
 		return logFileName
 	}
 
 	panic("日志已经无处安放，君欲何为？")
+}
+
+func writeLogFile(logFileName string) {
+	logdirFile := filepath.Join(os.TempDir(), strconv.Itoa(os.Getpid())+".logfile")
+	_ = os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm)
 }
 
 // FindLogDir 寻找日志合理的写入目录
