@@ -101,13 +101,15 @@ func writeCaller(b *[]byte) *[]byte {
 }
 
 func writeMsg(p []byte, b *[]byte) *[]byte {
-	i := len(p) - 1
-	for ; i >= 0; i-- {
-		if p[i] != '\r' && p[i] != '\n' {
+	i := len(p)
+	for ; i > 0; i-- {
+		if p[i-1] != '\n' {
 			break
 		}
 	}
-	*b = append(*b, p[:i]...)
+	if i > 0 {
+		*b = append(*b, p[:i]...)
+	}
 	*b = append(*b, '\n')
 	return b
 }

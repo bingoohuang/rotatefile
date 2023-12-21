@@ -1,6 +1,7 @@
 package autoload
 
 import (
+	"io"
 	"log"
 
 	"github.com/bingoohuang/rotatefile"
@@ -10,5 +11,12 @@ import (
 func init() {
 	log.SetFlags(0)
 	log.SetPrefix("")
-	log.SetOutput(stdlog.NewLevelLog(rotatefile.NewFile()))
+	RotateWriter = rotatefile.NewFile()
+	LevelLog = stdlog.NewLevelLog(RotateWriter)
+	log.SetOutput(LevelLog)
 }
+
+var (
+	RotateWriter rotatefile.RotateFile
+	LevelLog     io.Writer
+)
