@@ -46,6 +46,7 @@ const (
 	defaultMaxSize   = 100 * 1024 * 1024
 )
 
+// Config 包括一些滚动文件的配置参数，所有参数，均有默认值，方便无脑集成
 type Config struct {
 	// Filename is the file to write logs to.  Backup log files will be retained
 	// in the same directory.  It uses <processname>.log in os.TempDir() if empty.
@@ -92,18 +93,40 @@ type Config struct {
 	PrintTerm bool `json:"printTerm" yaml:"printTerm"`
 }
 
+// ConfigFn 选项模式函数
 type ConfigFn func(*Config)
 
-func WithConfig(v Config) ConfigFn              { return func(c *Config) { *c = v } }
-func WithPrintTerm(v bool) ConfigFn             { return func(c *Config) { c.PrintTerm = v } }
-func WithCompress(v bool) ConfigFn              { return func(c *Config) { c.Compress = v } }
-func WithUtcTime(v bool) ConfigFn               { return func(c *Config) { c.UtcTime = v } }
-func WithMinDiskFree(v uint64) ConfigFn         { return func(c *Config) { c.MinDiskFree = v } }
-func WithTotalSizeCap(v uint64) ConfigFn        { return func(c *Config) { c.TotalSizeCap = v } }
-func WithMaxBackups(v int) ConfigFn             { return func(c *Config) { c.MaxBackups = v } }
-func WithMaxDays(v int) ConfigFn                { return func(c *Config) { c.MaxDays = v } }
-func WithMaxSize(v uint64) ConfigFn             { return func(c *Config) { c.MaxSize = v } }
-func WithFilename(v string) ConfigFn            { return func(c *Config) { c.Filename = v } }
+// WithConfig 指定 Config 参数对象
+func WithConfig(v Config) ConfigFn { return func(c *Config) { *c = v } }
+
+// WithPrintTerm 指定是否同时打印到控制台
+func WithPrintTerm(v bool) ConfigFn { return func(c *Config) { c.PrintTerm = v } }
+
+// WithCompress 指定是否开启压缩
+func WithCompress(v bool) ConfigFn { return func(c *Config) { c.Compress = v } }
+
+// WithUtcTime 指定是否使用 UTC 时间
+func WithUtcTime(v bool) ConfigFn { return func(c *Config) { c.UtcTime = v } }
+
+// WithMinDiskFree 指定最小磁盘可用大小
+func WithMinDiskFree(v uint64) ConfigFn { return func(c *Config) { c.MinDiskFree = v } }
+
+// WithTotalSizeCap 指定日志总和大小上限
+func WithTotalSizeCap(v uint64) ConfigFn { return func(c *Config) { c.TotalSizeCap = v } }
+
+// WithMaxBackups 指定最大备份文件数量
+func WithMaxBackups(v int) ConfigFn { return func(c *Config) { c.MaxBackups = v } }
+
+// WithMaxDays 指定最大保存天数
+func WithMaxDays(v int) ConfigFn { return func(c *Config) { c.MaxDays = v } }
+
+// WithMaxSize 指定日志文件最大大小
+func WithMaxSize(v uint64) ConfigFn { return func(c *Config) { c.MaxSize = v } }
+
+// WithFilename 指定日志文件名字
+func WithFilename(v string) ConfigFn { return func(c *Config) { c.Filename = v } }
+
+// WithRotateSignals 指定强制滚动信号
 func WithRotateSignals(v ...os.Signal) ConfigFn { return func(c *Config) { c.RotateSignals = v } }
 
 // file is an io.WriteCloser that writes to the specified filename.
@@ -142,19 +165,21 @@ type file struct {
 	file   *os.File
 	millCh chan bool
 
+	Config
+
 	size      int64
 	startMill sync.Once
 	mu        sync.Mutex
-
-	Config
 }
 
+// RotateFile 滚动文件大小
 type RotateFile interface {
 	io.WriteCloser
 	Rotate() error
 	Flush() error
 }
 
+// NewFile 创建新一个新的滚动文件对象
 func NewFile(fns ...ConfigFn) RotateFile {
 	c := Config{
 		Filename:      os.Getenv("LOG_FILENAME"),
@@ -178,6 +203,7 @@ func NewFile(fns ...ConfigFn) RotateFile {
 	}
 }
 
+// EnvSignals 解析环境变量设置的信号
 func EnvSignals(envName string, defaultValue []os.Signal) []os.Signal {
 	s := os.Getenv(envName)
 	if s == "" {
@@ -199,6 +225,7 @@ func EnvSignals(envName string, defaultValue []os.Signal) []os.Signal {
 	return signals
 }
 
+// EnvBool 解析环境变量设置的 bool 类型变量
 func EnvBool(envName string, defaultValue bool) bool {
 	switch s := os.Getenv(envName); strings.ToLower(s) {
 	case "yes", "y", "1", "on", "true", "t":
@@ -209,23 +236,27 @@ func EnvBool(envName string, defaultValue bool) bool {
 	return defaultValue
 }
 
+// EnvInt 解析环境变量设置的 int 类型变量
 func EnvInt(envName string, defaultValue int) int {
 	if s := os.Getenv(envName); s != "" {
-		if v, err := strconv.Atoi(s); err != nil {
+		v, err := strconv.Atoi(s)
+		if err != nil {
 			return defaultValue
-		} else {
-			return v
 		}
+		return v
 	}
 	return defaultValue
 }
+
+// EnvSize 解析环境变量设置的字节大小类型的变量
 func EnvSize(envName string, defaultValue uint64) uint64 {
 	if s := os.Getenv(envName); s != "" {
-		if size, err := ParseBytes(s); err != nil {
+		size, err := ParseBytes(s)
+		if err != nil {
 			return defaultValue
-		} else {
-			return size
 		}
+
+		return size
 	}
 	return defaultValue
 }
@@ -252,7 +283,7 @@ func ParseBytes(s string) (uint64, error) {
 
 	num := s[:lastDigit]
 	if hasComma {
-		num = strings.Replace(num, ",", "", -1)
+		num = strings.ReplaceAll(num, ",", "")
 	}
 
 	f, err := strconv.ParseFloat(num, 64)
@@ -305,6 +336,7 @@ var bytesSizeTable = map[string]uint64{
 const (
 	// IEC Sizes. kibis of bits
 
+	// Byte 1个字节
 	Byte = 1 << (iota * 10)
 	KiByte
 	MiByte
@@ -577,6 +609,7 @@ func FindLogDir() string {
 	return ""
 }
 
+// IsDirWritable 测试目录是否可写
 func IsDirWritable(dir string) bool {
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, os.ModePerm); err != nil {

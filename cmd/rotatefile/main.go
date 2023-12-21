@@ -16,7 +16,6 @@ func main() {
 		rotatefile.WithTotalSizeCap(300*1024), // 最大总大小300K
 		rotatefile.WithMinDiskFree(300*1024),  // 最少 100M 磁盘空余
 	)
-	log.SetFlags(0)
 	log.SetOutput(stdlog.NewLevelLog(f))
 	for {
 		log.Printf("I! %s", RandStringBytesMaskImprSrc(1024))

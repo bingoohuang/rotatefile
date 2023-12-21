@@ -8,5 +8,7 @@ import (
 )
 
 func init() {
+	log.SetFlags(0)
+	log.SetPrefix("")
 	log.SetOutput(stdlog.NewLevelLog(rotatefile.NewFile()))
 }

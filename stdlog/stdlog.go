@@ -2,7 +2,6 @@ package stdlog
 
 import (
 	"fmt"
-	"github.com/bingoohuang/rotatefile"
 	"io"
 	"os"
 	"regexp"
@@ -12,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bingoohuang/rotatefile"
 	"github.com/silentred/gid"
 )
 
@@ -207,17 +207,15 @@ func NewLevelLog(w io.Writer) io.Writer {
 	}
 }
 
-var (
-	// regLevelTip parses the log level tip. the following tip is supported:
-	// T! for trace
-	// D! for debug
-	// I! for info
-	// W! for warn
-	// E! for error
-	// F! for fatal
-	// P! for panic
-	regLevelTip = regexp.MustCompile(`\b[TDIWEFP]!`)
-)
+// regLevelTip parses the log level tip. the following tip is supported:
+// T! for trace
+// D! for debug
+// I! for info
+// W! for warn
+// E! for error
+// F! for fatal
+// P! for panic
+var regLevelTip = regexp.MustCompile(`\b[TDIWEFP]!`)
 
 func ParseLevelByte(b byte) Level {
 	switch b {
