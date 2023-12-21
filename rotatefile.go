@@ -151,6 +151,7 @@ type file struct {
 
 type RotateFile interface {
 	io.WriteCloser
+	Rotate() error
 	Flush() error
 }
 
