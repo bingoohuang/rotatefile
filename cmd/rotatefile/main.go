@@ -3,24 +3,18 @@ package main
 import (
 	"log"
 	"math/rand"
-	"os"
-	"syscall"
 	"time"
 
 	"github.com/bingoohuang/rotatefile"
 )
 
 func main() {
-	log.SetOutput(&rotatefile.File{
-		MaxSize:       100 * 1024,                  // 单个日志文件最大100K
-		MaxBackups:    5,                           // 最多5个历史备份
-		MaxDays:       30,                          // 最多保留30天
-		TotalSizeCap:  300 * 1024,                  // 最大总大小1G
-		Compress:      true,                        // 历史日志开启 Gzip 压缩
-		MinDiskFree:   100 * 1024,                  // 最少 100M 空余
-		RotateSignals: []os.Signal{syscall.SIGHUP}, // 在收到 SIGHUP 时，滚动日志
-	})
-
+	log.SetOutput(rotatefile.NewFile(
+		rotatefile.WithMaxSize(100*1024),      // 单个日志文件最大100K
+		rotatefile.WithMaxDays(30),            // 最多保留30天
+		rotatefile.WithTotalSizeCap(300*1024), // 最大总大小300K
+		rotatefile.WithMinDiskFree(300*1024),  // 最少 100M 磁盘空余
+	))
 	for {
 		log.Print(RandStringBytesMaskImprSrc(1024))
 		time.Sleep(time.Second)

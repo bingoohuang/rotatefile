@@ -22,7 +22,7 @@ func TestMaintainMode(t *testing.T) {
 	isNil(err, t)
 	f.Close()
 
-	l := &File{
+	l := &file{
 		Filename:   filename,
 		MaxBackups: 1,
 		MaxSize:    100, // megabytes
@@ -65,7 +65,7 @@ func TestMaintainOwner(t *testing.T) {
 	isNil(err, t)
 	f.Close()
 
-	l := &File{
+	l := &file{
 		Filename:   filename,
 		MaxBackups: 1,
 		MaxSize:    100, // megabytes
@@ -98,7 +98,7 @@ func TestCompressMaintainMode(t *testing.T) {
 	isNil(err, t)
 	f.Close()
 
-	l := &File{
+	l := &file{
 		Compress:   true,
 		Filename:   filename,
 		MaxBackups: 1,
@@ -148,7 +148,7 @@ func TestCompressMaintainOwner(t *testing.T) {
 	isNil(err, t)
 	f.Close()
 
-	l := &File{
+	l := &file{
 		Compress:   true,
 		Filename:   filename,
 		MaxBackups: 1,

@@ -28,31 +28,41 @@ package main
 
 import (
 	"log"
-	"os"
-	"syscall"
 
 	"github.com/bingoohuang/rotatefile"
 )
 
 func init() {
-	log.SetOutput(&rotatefile.File{
-		Filename:      "/var/log/myapp/foo.log",
-		MaxSize:       100 * rotatefile.MB,         // 单个日志文件最大100M
-		MaxBackups:    30,                          // 最多30个历史备份
-		MaxDays:       30,                          // 最多保留30天
-		TotalSizeCap:  rotatefile.GB,               // 最大总大小1G
-		Compress:      true,                        // 历史日志开启 Gzip 压缩
-		MinDiskFree:   100 * rotatefile.MB,         // 最少 100M 空余
-		RotateSignals: []os.Signal{syscall.SIGHUP}, // 在收到 SIGHUP 时，滚动日志
-	})
+	log.SetOutput(rotatefile.NewFile(
+		// rotatefile.WithFilename("/var/log/myapp/foo.log"), // 指定日志文件完整路径, 默认值见 Config.Filename 说明
+		// rotatefile.WithMaxSize(100*1024),      // 单个日志文件最大大小，默认 100M
+		// rotatefile.WithMaxDays(30),            // 最多保留天数，默认值30
+		// rotatefile.WithTotalSizeCap(1024*1024*1024), // 最大总大小，默认 1G
+		// rotatefile.WithMinDiskFree(300*1024),  // 最少磁盘空余，默认 100M
+		// 以上默认值，还可以通过环境变量设置，参照环境变量说明
+	))
 }
-
 ```
 
-## type rotatefile.File
+## 环境变量
+
+| 序号 | 变量名                | 默认值                    | 含义              |
+|----|--------------------|------------------------|-----------------|
+| 1  | LOG_FILENAME       | 见 下面Config.Filename 说明 | 日志文件完整路径        |
+| 2  | LOG_ROTATE_SIGNALS | SIGHUP                 | 强制当前日志滚动信号      |
+| 3  | LOG_MAX_SIZE       | 100M                   | 单个日志文件最大大小      |
+| 4  | LOG_MAX_DAYS       | 30                     | 最多保留天数          |
+| 5  | LOG_MAX_BACKUPS    | 0                      | 最大历史文件个数        |
+| 6  | LOG_TOTAL_SIZE_CAP | 1G                     | 最大总大小           |
+| 7  | LOG_MIN_DISK_FREE  | 100M                   | 最少磁盘空余          |
+| 8  | LOG_UTCTIME        | 0                      | 是否使用 UTC 时间     |
+| 9  | LOG_COMPRESS       | 1                      | 是否启用gzip 压缩历史文件 |
+| 10 | LOG_PRINT_TERM     | 根据进程是否有终端              | 同时在终端打印         |
+
+## type rotatefile.Config
 
 ``` go
-type File struct {
+type Config struct {
     // Filename is the file to write logs to. Backup log files will be retained
     // in the same directory.  
     // 如果设置为空，则自动按顺序在以下目录中写入（找到第一个可用目录为止)，具体位置可以见 $TMPDIR/{pid}.logfile 文件
