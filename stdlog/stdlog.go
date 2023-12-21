@@ -71,11 +71,11 @@ func (w wrapper) Write(p []byte) (n int, err error) {
 	return w.Writer.Write(*buf)
 }
 
-func writeCaller(buf *[]byte) *[]byte {
-	*buf = append(*buf, '[')
+func writeCaller(b *[]byte) *[]byte {
+	*b = append(*b, '[')
 	if !DefaultCaller {
-		*buf = append(*buf, '-', ']')
-		return buf
+		*b = append(*b, '-', ']')
+		return b
 	}
 
 	_, file, line, ok := runtime.Caller(4)
@@ -93,72 +93,72 @@ func writeCaller(buf *[]byte) *[]byte {
 		}
 		file = short
 	}
-	*buf = append(*buf, file...)
-	*buf = append(*buf, ':')
-	itoa(buf, int64(line), -1)
-	*buf = append(*buf, ']')
-	return buf
+	*b = append(*b, file...)
+	*b = append(*b, ':')
+	itoa(b, int64(line), -1)
+	*b = append(*b, ']')
+	return b
 }
 
-func writeMsg(p []byte, buf *[]byte) *[]byte {
+func writeMsg(p []byte, b *[]byte) *[]byte {
 	i := len(p) - 1
 	for ; i >= 0; i-- {
 		if p[i] != '\r' && p[i] != '\n' {
 			break
 		}
 	}
-	*buf = append(*buf, p[:i]...)
-	*buf = append(*buf, '\n')
-	return buf
+	*b = append(*b, p[:i]...)
+	*b = append(*b, '\n')
+	return b
 }
 
-func writeGid(buf *[]byte) *[]byte {
-	*buf = append(*buf, '[')
+func writeGid(b *[]byte) *[]byte {
+	*b = append(*b, '[')
 	id := gid.Get()
-	len0 := len(*buf)
-	*buf = strconv.AppendInt(*buf, id, 10)
-	len1 := len(*buf)
+	len0 := len(*b)
+	*b = strconv.AppendInt(*b, id, 10)
+	len1 := len(*b)
 	for i := len1 - len0; i < 6; i++ {
-		*buf = append(*buf, ' ')
+		*b = append(*b, ' ')
 	}
-	*buf = append(*buf, ']')
-	return buf
+	*b = append(*b, ']')
+	return b
 }
 
-func writeInfo(buf *[]byte, level Level) *[]byte {
-	*buf = append(*buf, '[')
+func writeInfo(b *[]byte, level Level) *[]byte {
+	*b = append(*b, '[')
 	levelBytes, _ := level.MarshalText()
-	*buf = append(*buf, levelBytes...)
+	*b = append(*b, levelBytes...)
 	if diff := 5 - len(levelBytes); diff > 0 {
-		*buf = append(*buf, ' ')
+		*b = append(*b, ' ')
 	}
-	*buf = append(*buf, ']')
-	return buf
+	*b = append(*b, ']')
+	return b
 }
 
-func writeTime(buf *[]byte) *[]byte {
+func writeTime(b *[]byte) *[]byte {
 	t := time.Now()
 	{
-		year, month, day := t.Date()
-		itoa(buf, int64(year), 4)
-		*buf = append(*buf, '-')
-		itoa(buf, int64(month), 2)
-		*buf = append(*buf, '-')
-		itoa(buf, int64(day), 2)
-		*buf = append(*buf, ' ')
+		y, m, d := t.Date()
+		itoa(b, int64(y), 4)
+		*b = append(*b, '-')
+		itoa(b, int64(m), 2)
+		*b = append(*b, '-')
+		itoa(b, int64(d), 2)
+		*b = append(*b, ' ')
 	}
 	{
-		hour, min, sec := t.Clock()
-		itoa(buf, int64(hour), 2)
-		*buf = append(*buf, ':')
-		itoa(buf, int64(min), 2)
-		*buf = append(*buf, ':')
-		itoa(buf, int64(sec), 2)
-		*buf = append(*buf, '.')
-		itoa(buf, int64(t.Nanosecond()/1e6), 3)
+		h, m, s := t.Clock()
+		itoa(b, int64(h), 2)
+		*b = append(*b, ':')
+		itoa(b, int64(m), 2)
+		*b = append(*b, ':')
+		itoa(b, int64(s), 2)
+		*b = append(*b, '.')
+		itoa(b, int64(t.Nanosecond()/1e6), 3)
 	}
 
-	return buf
+	return b
 }
 
 var pid = []byte(strconv.Itoa(os.Getpid()))
