@@ -6,17 +6,20 @@ import (
 	"time"
 
 	"github.com/bingoohuang/rotatefile"
+	"github.com/bingoohuang/rotatefile/stdlog"
 )
 
 func main() {
-	log.SetOutput(rotatefile.NewFile(
+	f := rotatefile.NewFile(
 		rotatefile.WithMaxSize(100*1024),      // 单个日志文件最大100K
 		rotatefile.WithMaxDays(30),            // 最多保留30天
 		rotatefile.WithTotalSizeCap(300*1024), // 最大总大小300K
 		rotatefile.WithMinDiskFree(300*1024),  // 最少 100M 磁盘空余
-	))
+	)
+	log.SetFlags(0)
+	log.SetOutput(stdlog.NewLevelLog(f))
 	for {
-		log.Print(RandStringBytesMaskImprSrc(1024))
+		log.Printf("I! %s", RandStringBytesMaskImprSrc(1024))
 		time.Sleep(time.Second)
 	}
 }
