@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -115,7 +114,7 @@ func TestMakeLogDir(t *testing.T) {
 func TestDefaultFilename(t *testing.T) {
 	currentTime = fakeTime
 
-	filename := getLogFileName()
+	filename := getLogFileName("")
 	defer os.Remove(filename)
 	l := &file{}
 	defer l.Close()
@@ -475,6 +474,7 @@ func TestOldLogFiles(t *testing.T) {
 	isNil(err, t)
 
 	l := &file{Config: Config{Filename: filename}}
+	l.mill()
 	files, err := l.oldLogFiles()
 	isNil(err, t)
 	equals(2, len(files), t)
@@ -486,6 +486,7 @@ func TestOldLogFiles(t *testing.T) {
 
 func TestTimeFromName(t *testing.T) {
 	l := &file{Config: Config{Filename: "/var/log/myfoo/foo.log"}}
+	l.mill()
 	prefix, ext := l.prefixAndExt()
 
 	tests := []struct {
@@ -780,7 +781,7 @@ func existsWithContent(path string, content []byte, t testing.TB) {
 	isNilUp(err, t, 1)
 	equalsUp(int64(len(content)), info.Size(), t, 1)
 
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	isNilUp(err, t, 1)
 	equalsUp(content, b, t, 1)
 }

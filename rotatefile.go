@@ -168,6 +168,8 @@ type file struct {
 
 	Config
 
+	dir       string
+	filename  string
 	size      atomic.Int64
 	startMill sync.Once
 	mu        sync.Mutex
@@ -466,12 +468,12 @@ func (l *file) rotate() error {
 // openNew opens a new log file for writing, moving any old log file out of the
 // way.  These methods assume the file has already been closed.
 func (l *file) openNew() error {
-	err := os.MkdirAll(l.dir(), 0o755)
+	err := os.MkdirAll(l.dir, 0o755)
 	if err != nil {
 		return fmt.Errorf("can't make directories for new logfile: %s", err)
 	}
 
-	name := l.filename()
+	name := l.filename
 	mode := os.FileMode(0o600)
 	info, err := osStat(name)
 	if info != nil {
@@ -524,7 +526,7 @@ func backupName(name string, utc bool) string {
 func (l *file) openExistingOrNew(writeLen int) error {
 	l.mill()
 
-	filename := l.filename()
+	filename := l.filename
 	info, err := osStat(filename)
 	if os.IsNotExist(err) {
 		return l.openNew()
@@ -553,18 +555,27 @@ func (l *file) openExistingOrNew(writeLen int) error {
 	return nil
 }
 
-// filename generates the name of the logfile from the current time.
-func (l *file) filename() string {
+// setFileName generates the name of the logfile from the current time.
+func (l *file) setFileName() {
+	logDir := ""
 	if l.Filename != "" {
-		return l.Filename
+		if strings.HasSuffix(l.Filename, ".log") {
+			// 配置的是具体的日志文件名称（推荐的配置）
+			l.filename = l.Filename
+			l.dir = filepath.Dir(l.filename)
+			return
+		}
+		// 否则当做日志路径看待，日志文件名自动补全
+		logDir = l.Filename
 	}
 
-	return getLogFileName()
+	l.filename = getLogFileName(logDir)
+	l.dir = filepath.Dir(l.filename)
 }
 
 // getLogFileName 获取可执行文件 binName 的日志文件路径
-func getLogFileName() string {
-	if p := FindLogDir(); p != "" {
+func getLogFileName(logDir string) string {
+	if p := FindLogDir(logDir); p != "" {
 		appName := filepath.Base(os.Args[0])
 		logFileName := filepath.Join(p, appName+currentDirBase+".log")
 
@@ -578,12 +589,18 @@ func getLogFileName() string {
 }
 
 // FindLogDir 寻找日志合理的写入目录
+// 0. 配置指定目录 /var/log/xxx/
 // 1. $HOME/log/{appName}/{appName}_{appWorkDirBase}.log
 // 2. $PWD/log/{appName}_{appWorkDirBase}.log
 // 3. /var/log/apps/{appName}/{appName}_{appWorkDirBase}.log
 // 4. $TMPDIR/{appName}/{appName}_{appWorkDirBase}.log
-func FindLogDir() string {
+func FindLogDir(logDir string) string {
 	appName := filepath.Base(os.Args[0])
+	if logDir != "" {
+		if p := filepath.Join(logDir, "log", appName); IsDirWritable(p) {
+			return p
+		}
+	}
 	if home, _ := HomeDir(); home != "" {
 		if p := filepath.Join(home, "log", appName); IsDirWritable(p) {
 			return p
@@ -703,7 +720,7 @@ func (l *file) millRunOnce() error {
 		}
 	}
 
-	dir := l.dir()
+	dir := l.dir
 	for _, f := range remove {
 		removeFile := filepath.Join(dir, f.Name)
 		errRemove := os.Remove(removeFile)
@@ -789,6 +806,7 @@ func (l *file) millRun() {
 // starting the mill goroutine if necessary.
 func (l *file) mill() {
 	l.startMill.Do(func() {
+		l.setFileName()
 		l.signalRotate()
 		l.millCh = make(chan bool, 1)
 		go l.millRun()
@@ -818,7 +836,7 @@ func (l *file) signalRotate() {
 // directory as the current log file, sorted by ModTime
 // 不包括当前正在写入的日志文件，排序从最新到最老
 func (l *file) oldLogFiles() ([]logInfo, error) {
-	files, err := os.ReadDir(l.dir())
+	files, err := os.ReadDir(l.dir)
 	if err != nil {
 		return nil, fmt.Errorf("can't read log file directory: %s", err)
 	}
@@ -878,15 +896,10 @@ func (l *file) max() int64 {
 	return int64(l.MaxSize)
 }
 
-// dir returns the directory for the current filename.
-func (l *file) dir() string {
-	return filepath.Dir(l.filename())
-}
-
 // prefixAndExt returns the filename part and extension part from the file's
 // filename.
 func (l *file) prefixAndExt() (prefix, ext string) {
-	filename := filepath.Base(l.filename())
+	filename := filepath.Base(l.filename)
 	ext = filepath.Ext(filename)
 	prefix = filename[:len(filename)-len(ext)] + "."
 	return prefix, ext
