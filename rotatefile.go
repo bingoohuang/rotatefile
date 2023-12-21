@@ -23,6 +23,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -358,8 +359,71 @@ func (l *File) filename() string {
 	if l.Filename != "" {
 		return l.Filename
 	}
-	name := filepath.Base(os.Args[0]) + ".log"
-	return filepath.Join(os.TempDir(), name)
+
+	return getLogFileName()
+}
+
+// getLogFileName 获取可执行文件 binName 的日志文件路径
+func getLogFileName() string {
+	if p := FindLogDir(); p != "" {
+
+		appName := filepath.Base(os.Args[0])
+		logFileName := filepath.Join(p, appName+currentDirBase+".log")
+
+		logdirFile := filepath.Join(os.TempDir(), strconv.Itoa(os.Getpid())+".logfile")
+		_ = os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm)
+
+		return logFileName
+	}
+
+	panic("日志已经无处安放，君欲何为？")
+}
+
+// FindLogDir 寻找日志合理的写入目录
+// 1. $HOME/log/{appName}/{appName}_{appWorkDirBase}.log
+// 2. $PWD/log/{appName}_{appWorkDirBase}.log
+// 3. /var/log/apps/{appName}/{appName}_{appWorkDirBase}.log
+// 4. $TMPDIR/{appName}/{appName}_{appWorkDirBase}.log
+func FindLogDir() string {
+	appName := filepath.Base(os.Args[0])
+	if home, _ := HomeDir(); home != "" {
+		if p := filepath.Join(home, "log", appName); IsDirWritable(p) {
+			return p
+		}
+	}
+	if wd, _ := os.Getwd(); wd != "" {
+		if p := filepath.Join(wd, "log", appName); IsDirWritable(p) {
+			return p
+		}
+	}
+	if p := filepath.Join("/var/log/apps", appName); IsDirWritable(p) {
+		return p
+	}
+	if p := os.TempDir(); IsDirWritable(p) {
+		return p
+	}
+	return ""
+}
+
+func IsDirWritable(dir string) bool {
+	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return false
+		}
+	}
+
+	temp, err := os.CreateTemp(dir, "*")
+	if err != nil {
+		return false
+	}
+	defer func() {
+		temp.Close()
+		os.Remove(temp.Name())
+	}()
+
+	const s = "bingoohuang_log_test"
+	n, err := temp.WriteString(s)
+	return err == nil && n == len(s)
 }
 
 var currentDirBase = func() string {
@@ -480,7 +544,7 @@ func (l *File) keepTotalSizeCap(dir string) error {
 		}
 	}
 
-	if l.TotalSizeCap <= 0 || (l.MinDiskFree > 0 && dirDiskFree >= l.MinDiskFree) {
+	if l.TotalSizeCap <= 0 && (l.MinDiskFree == 0 || dirDiskFree >= l.MinDiskFree) {
 		return nil
 	}
 
@@ -494,12 +558,13 @@ func (l *File) keepTotalSizeCap(dir string) error {
 		totalSize += f.Size
 	}
 
-	// 从最早的历史文件开始，删除历史文件，以控制总大小
-	for _, f := range files {
+	// 从最近的历史文件开始，删除历史文件，以控制总大小
+	for i := len(files) - 1; i >= 0; i-- {
 		if totalSize <= l.TotalSizeCap && (l.MinDiskFree == 0 || dirDiskFree >= l.MinDiskFree) {
 			break
 		}
 
+		f := files[i]
 		if err1 := os.Remove(filepath.Join(dir, f.Name)); err1 == nil {
 			// 删除成功，从总大小中减去删除文件的大小
 			totalSize -= f.Size
@@ -552,7 +617,7 @@ func (l *File) signalRotate() {
 
 // oldLogFiles returns the list of backup log files stored in the same
 // directory as the current log file, sorted by ModTime
-// 不包括当前正在写入的日志文件
+// 不包括当前正在写入的日志文件，排序从最新到最老
 func (l *File) oldLogFiles() ([]logInfo, error) {
 	files, err := os.ReadDir(l.dir())
 	if err != nil {

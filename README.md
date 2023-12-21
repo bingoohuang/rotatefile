@@ -53,9 +53,13 @@ func init() {
 
 ``` go
 type File struct {
-    // Filename is the file to write logs to.  Backup log files will be retained
-    // in the same directory.  It uses <processname>-rotatefile.log in
-    // os.TempDir() if empty.
+    // Filename is the file to write logs to. Backup log files will be retained
+    // in the same directory.  
+    // 如果设置为空，则自动按顺序在以下目录中写入（找到第一个可用目录为止)，具体位置可以见 $TMPDIR/{pid}.logfile 文件
+    // 1. $HOME/log/{appName}/{appName}_{appWorkDirBase}.log
+    // 2. $PWD/log/{appName}_{appWorkDirBase}.log
+    // 3. /var/log/apps/{appName}/{appName}_{appWorkDirBase}.log
+    // 4. $TMPDIR/{appName}/{appName}_{appWorkDirBase}.log
     Filename string `json:"filename" yaml:"filename"`
 
     // MaxSize is the maximum size of the log file before it gets
