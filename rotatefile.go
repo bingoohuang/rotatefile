@@ -301,9 +301,9 @@ var bytesSizeTable = map[string]uint64{
 	"e":  EByte,
 }
 
-// IEC Sizes.
-// kibis of bits
 const (
+	// IEC Sizes. kibis of bits
+
 	Byte = 1 << (iota * 10)
 	KiByte
 	MiByte
@@ -311,10 +311,9 @@ const (
 	TiByte
 	PiByte
 	EiByte
-)
 
-// SI Sizes.
-const (
+	// SI Sizes.
+
 	IByte = 1
 	KByte = IByte * 1000
 	MByte = KByte * 1000
@@ -536,13 +535,11 @@ func (l *file) filename() string {
 // getLogFileName 获取可执行文件 binName 的日志文件路径
 func getLogFileName() string {
 	if p := FindLogDir(); p != "" {
-
 		appName := filepath.Base(os.Args[0])
 		logFileName := filepath.Join(p, appName+currentDirBase+".log")
 
 		logdirFile := filepath.Join(os.TempDir(), strconv.Itoa(os.Getpid())+".logfile")
 		_ = os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm)
-
 		return logFileName
 	}
 
