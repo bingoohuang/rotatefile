@@ -381,6 +381,10 @@ func (l *file) Flush() error {
 		return l.file.Sync()
 	}
 
+	if l.PrintTerm {
+		os.Stdout.Sync()
+	}
+
 	return nil
 }
 
