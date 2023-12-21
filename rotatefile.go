@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unicode"
@@ -167,7 +168,7 @@ type file struct {
 
 	Config
 
-	size      int64
+	size      atomic.Int64
 	startMill sync.Once
 	mu        sync.Mutex
 }
@@ -392,14 +393,14 @@ func (l *file) Write(p []byte) (n int, err error) {
 		}
 	}
 
-	if l.size+writeLen > l.max() {
+	if l.size.Load()+writeLen > l.max() {
 		if err := l.rotate(); err != nil {
 			return 0, err
 		}
 	}
 
 	n, err = l.file.Write(p)
-	l.size += int64(n)
+	l.size.Add(int64(n))
 
 	return n, err
 }
@@ -419,14 +420,6 @@ func (l *file) Flush() error {
 	}
 
 	return nil
-}
-
-// Size 返回当前文件大小.
-func (l *file) Size() int64 {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	return l.size
 }
 
 func (l *file) Close() error {
@@ -504,7 +497,7 @@ func (l *file) openNew() error {
 		return fmt.Errorf("can't open new logfile: %s", err)
 	}
 	l.file = f
-	l.size = 0
+	l.size.Store(0)
 	return nil
 }
 
@@ -556,7 +549,7 @@ func (l *file) openExistingOrNew(writeLen int) error {
 		return l.openNew()
 	}
 	l.file = file
-	l.size = size
+	l.size.Store(size)
 	return nil
 }
 
@@ -577,6 +570,7 @@ func getLogFileName() string {
 
 		logdirFile := filepath.Join(os.TempDir(), strconv.Itoa(os.Getpid())+".logfile")
 		_ = os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm)
+
 		return logFileName
 	}
 
@@ -758,7 +752,7 @@ func (l *file) keepTotalSizeCap(dir string) error {
 		return err
 	}
 
-	totalSize := l.Size()
+	totalSize := l.size.Load()
 	for _, f := range files {
 		totalSize += f.Size
 	}
