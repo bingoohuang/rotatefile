@@ -49,9 +49,14 @@ func (w wrapper) Write(p []byte) (n int, err error) {
 		return len(p), nil
 	}
 
-	buf := getBuffer()
-	defer putBuffer(buf)
+	buf := GetBuffer()
+	defer PutBuffer(buf)
 
+	levelBytes, _ := level.MarshalText()
+	return WriteLogLine(w.Writer, 5, levelBytes, p, buf)
+}
+
+func WriteLogLine(w io.Writer, callDepth int, level, msg []byte, buf *[]byte) (int, error) {
 	buf = writeTime(buf)
 	*buf = append(*buf, ' ')
 
@@ -64,21 +69,21 @@ func (w wrapper) Write(p []byte) (n int, err error) {
 	buf = writeGid(buf)
 	*buf = append(*buf, ' ')
 
-	buf = writeCaller(buf)
+	buf = writeCaller(callDepth, buf)
 	*buf = append(*buf, ' ', ':', ' ')
 
-	buf = writeMsg(p, buf)
-	return w.Writer.Write(*buf)
+	buf = writeMsg(msg, buf)
+	return w.Write(*buf)
 }
 
-func writeCaller(b *[]byte) *[]byte {
+func writeCaller(callDepth int, b *[]byte) *[]byte {
 	*b = append(*b, '[')
 	if !DefaultCaller {
 		*b = append(*b, '-', ']')
 		return b
 	}
 
-	_, file, line, ok := runtime.Caller(4)
+	_, file, line, ok := runtime.Caller(callDepth)
 	if !ok {
 		file = "???"
 		line = 0
@@ -127,11 +132,10 @@ func writeGid(b *[]byte) *[]byte {
 	return b
 }
 
-func writeInfo(b *[]byte, level Level) *[]byte {
+func writeInfo(b *[]byte, level []byte) *[]byte {
 	*b = append(*b, '[')
-	levelBytes, _ := level.MarshalText()
-	*b = append(*b, levelBytes...)
-	if diff := 5 - len(levelBytes); diff > 0 {
+	*b = append(*b, level...)
+	if diff := 5 - len(level); diff > 0 {
 		*b = append(*b, ' ')
 	}
 	*b = append(*b, ']')
@@ -167,13 +171,13 @@ var pid = []byte(strconv.Itoa(os.Getpid()))
 
 var bufferPool = sync.Pool{New: func() any { return new([]byte) }}
 
-func getBuffer() *[]byte {
+func GetBuffer() *[]byte {
 	p := bufferPool.Get().(*[]byte)
 	*p = (*p)[:0]
 	return p
 }
 
-func putBuffer(p *[]byte) {
+func PutBuffer(p *[]byte) {
 	// Proper usage of a sync.Pool requires each entry to have approximately
 	// the same memory cost. To obtain this property when the stored type
 	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
