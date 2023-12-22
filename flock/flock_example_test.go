@@ -42,7 +42,6 @@ func ExampleFlock_TryLock() {
 	fileLock := flock.New(os.TempDir() + "/go-lock.lock")
 
 	locked, err := fileLock.TryLock()
-
 	if err != nil {
 		// handle locking error
 	}
@@ -65,7 +64,6 @@ func ExampleFlock_TryLockContext() {
 	lockCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	locked, err := fileLock.TryLockContext(lockCtx, 678*time.Millisecond)
-
 	if err != nil {
 		// handle locking error
 	}

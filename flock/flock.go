@@ -27,9 +27,9 @@ import (
 // Flock is the struct type to handle file locking. All fields are unexported,
 // with access to some of the fields provided by getter methods (Path() and Locked()).
 type Flock struct {
+	fh   *os.File
 	path string
 	m    sync.RWMutex
-	fh   *os.File
 	l    bool
 	r    bool
 }
@@ -125,7 +125,7 @@ func (f *Flock) setFh() error {
 	} else {
 		flags |= os.O_RDONLY
 	}
-	fh, err := os.OpenFile(f.path, flags, os.FileMode(0600))
+	fh, err := os.OpenFile(f.path, flags, os.FileMode(0o600))
 	if err != nil {
 		return err
 	}

@@ -11,7 +11,7 @@ import (
 func init() {
 	log.SetFlags(0)
 	log.SetPrefix("")
-	RotateWriter = rotatefile.NewFile()
+	RotateWriter = rotatefile.New()
 	LevelLog = stdlog.NewLevelLog(RotateWriter)
 	log.SetOutput(LevelLog)
 }
