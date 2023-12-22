@@ -114,7 +114,7 @@ func TestMakeLogDir(t *testing.T) {
 func TestDefaultFilename(t *testing.T) {
 	currentTime = fakeTime
 
-	filename := getLogFileName("", "")
+	filename, _ := getLogFileName("", "", false)
 	defer os.Remove(filename)
 	l := &file{}
 	defer l.Close()
@@ -809,9 +809,16 @@ func logFileLocal(dir string) string {
 // fileCount checks that the number of files in the directory is exp.
 func fileCount(dir string, exp int, t testing.TB) {
 	files, err := os.ReadDir(dir)
+	fileNum := len(files)
+	for _, f := range files {
+		if filepath.Ext(f.Name()) == ".lock" {
+			fileNum--
+		}
+	}
+
 	isNilUp(err, t, 1)
 	// Make sure no other files were created.
-	equalsUp(exp, len(files), t, 1)
+	equalsUp(exp, fileNum, t, 1)
 }
 
 // newFakeTime sets the fake "current time" to two days later.

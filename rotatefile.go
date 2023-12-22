@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/bingoohuang/rotatefile/disk"
+	"github.com/bingoohuang/rotatefile/flock"
 )
 
 // file is an io.WriteCloser that writes to the specified filename.
@@ -65,6 +66,8 @@ import (
 type file struct {
 	file   *os.File
 	millCh chan bool
+
+	flock *flock.Flock
 
 	dir      string
 	filename string
@@ -291,7 +294,7 @@ func (l *file) setFileName() {
 	}
 
 	// 否则当做日志路径看待，日志文件名自动补全
-	l.filename = getLogFileName(logDir, logName)
+	l.filename, l.flock = getLogFileName(logDir, logName, true)
 	l.dir = filepath.Dir(l.filename)
 }
 

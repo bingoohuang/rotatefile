@@ -5,22 +5,34 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+
+	"github.com/bingoohuang/rotatefile/flock"
 )
 
 // getLogFileName 获取可执行文件 binName 的日志文件路径
-func getLogFileName(logDir, logName string) string {
+func getLogFileName(logDir, logName string, tryLock bool) (string, *flock.Flock) {
 	if p := FindLogDir(logDir); p != "" {
-		appName := filepath.Base(os.Args[0])
 		if logName == "" {
+			appName := filepath.Base(os.Args[0])
 			logName = appName + currentDirBase + ".log"
+		}
+
+		var logLock *flock.Flock
+		if tryLock {
+			logLock = flock.New(filepath.Join(p, logName+".lock"))
+			if lock, _ := logLock.TryLock(); !lock {
+				logName = logName[:len(logName)-len(".log")] + "." + pid + ".log"
+			}
 		}
 		logFileName := filepath.Join(p, logName)
 		writeLogFile(logFileName)
-		return logFileName
+		return logFileName, logLock
 	}
 
 	panic("日志已经无处安放，君欲何为？")
 }
+
+var pid = strconv.Itoa(os.Getpid())
 
 func writeLogFile(logFileName string) {
 	logdirFile := filepath.Join(os.TempDir(), strconv.Itoa(os.Getpid())+".logfile")
