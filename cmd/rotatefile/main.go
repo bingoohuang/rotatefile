@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"math/rand"
 	"time"
@@ -10,7 +11,11 @@ import (
 )
 
 func main() {
+	logdir := flag.String("logdir", "", "log dir")
+	flag.Parse()
+
 	f := rotatefile.New(
+		rotatefile.WithFilename(*logdir),      // 指定日志目录
 		rotatefile.WithMaxSize(100*1024),      // 单个日志文件最大100K
 		rotatefile.WithMaxDays(30),            // 最多保留30天
 		rotatefile.WithTotalSizeCap(300*1024), // 最大总大小300K

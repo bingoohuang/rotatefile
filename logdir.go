@@ -8,10 +8,13 @@ import (
 )
 
 // getLogFileName 获取可执行文件 binName 的日志文件路径
-func getLogFileName(logDir string) string {
+func getLogFileName(logDir, logName string) string {
 	if p := FindLogDir(logDir); p != "" {
 		appName := filepath.Base(os.Args[0])
-		logFileName := filepath.Join(p, appName+currentDirBase+".log")
+		if logName == "" {
+			logName = appName + currentDirBase + ".log"
+		}
+		logFileName := filepath.Join(p, logName)
 		writeLogFile(logFileName)
 		return logFileName
 	}
@@ -31,12 +34,13 @@ func writeLogFile(logFileName string) {
 // 3. /var/log/apps/{appName}/{appName}_{appWorkDirBase}.log
 // 4. $TMPDIR/{appName}/{appName}_{appWorkDirBase}.log
 func FindLogDir(logDir string) string {
-	appName := filepath.Base(os.Args[0])
 	if logDir != "" {
-		if p := filepath.Join(logDir, "log", appName); IsDirWritable(p) {
-			return p
+		if IsDirWritable(logDir) {
+			return logDir
 		}
 	}
+
+	appName := filepath.Base(os.Args[0])
 	if home, _ := HomeDir(); home != "" {
 		if p := filepath.Join(home, "log", appName); IsDirWritable(p) {
 			return p

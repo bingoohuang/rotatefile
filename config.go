@@ -4,6 +4,7 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/bingoohuang/rotatefile/homedir"
 	"golang.org/x/term"
 )
 
@@ -120,7 +121,15 @@ func WithMaxDays(v int) ConfigFn { return func(c *Config) { c.MaxDays = v } }
 func WithMaxSize(v uint64) ConfigFn { return func(c *Config) { c.MaxSize = v } }
 
 // WithFilename 指定日志文件名字
-func WithFilename(v string) ConfigFn { return func(c *Config) { c.Filename = v } }
+func WithFilename(v string) ConfigFn {
+	return func(c *Config) {
+		if expanded, err := homedir.Expand(v); err == nil {
+			c.Filename = expanded
+		} else {
+			c.Filename = v
+		}
+	}
+}
 
 // WithRotateSignals 指定强制滚动信号
 func WithRotateSignals(v ...os.Signal) ConfigFn { return func(c *Config) { c.RotateSignals = v } }

@@ -283,16 +283,15 @@ func (l *file) openExistingOrNew(writeLen int) error {
 
 // setFileName generates the name of the logfile from the current time.
 func (l *file) setFileName() {
+	logDir, logName := l.Filename, ""
 	if strings.HasSuffix(l.Filename, ".log") {
 		// 配置的是具体的日志文件名称（推荐的配置）
-		l.filename = l.Filename
-		l.dir = filepath.Dir(l.filename)
-		writeLogFile(l.filename)
-		return
+		logDir = filepath.Dir(l.Filename)
+		logName = filepath.Base(l.Filename)
 	}
 
 	// 否则当做日志路径看待，日志文件名自动补全
-	l.filename = getLogFileName(l.Filename)
+	l.filename = getLogFileName(logDir, logName)
 	l.dir = filepath.Dir(l.filename)
 }
 
