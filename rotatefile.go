@@ -509,19 +509,25 @@ func (l *file) oldLogFiles() ([]logInfo, error) {
 	return logFiles, nil
 }
 
+var ErrMismatched = errors.New("mismatched extension/prefix/backup time format")
+
 // timeFromName extracts the formatted time from the filename by stripping off
 // the filename's prefix and extension. This prevents someone's filename from
 // confusing time.parse.
 func (l *file) timeFromName(filename, prefix, ext string) (time.Time, error) {
 	if !strings.HasSuffix(filename, ext) {
-		return time.Time{}, errors.New("mismatched extension")
+		return time.Time{}, ErrMismatched
 	}
 	filename = filename[:len(filename)-len(ext)]
 	if !strings.HasPrefix(filename, prefix) {
-		return time.Time{}, errors.New("mismatched prefix")
+		return time.Time{}, ErrMismatched
 	}
 
 	ts := filename[len(prefix):]
+	if len(ts) != len(backupTimeFormat) {
+		return time.Time{}, ErrMismatched
+	}
+
 	return time.Parse(backupTimeFormat, ts)
 }
 

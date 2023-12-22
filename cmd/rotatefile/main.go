@@ -20,6 +20,7 @@ func main() {
 		rotatefile.WithMaxDays(30),            // 最多保留30天
 		rotatefile.WithTotalSizeCap(300*1024), // 最大总大小300K
 		rotatefile.WithMinDiskFree(300*1024),  // 最少 100M 磁盘空余
+		rotatefile.WithPrintTerm(false),       // 屏幕不打印输出
 	)
 	log.SetOutput(stdlog.NewLevelLog(f))
 	for {
