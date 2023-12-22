@@ -1,5 +1,7 @@
 # rotatefile
 
+支持：全默认配置接入、按天滚动、按大小滚动、过期删除、日志总大小控制、磁盘空余控制、日志锁定（防止并发写日志）
+
 rotatefile a Go package for writing logs to rolling files.
 
 package rotatefile provides a rolling rotatefile.File.
