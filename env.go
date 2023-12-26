@@ -2,6 +2,7 @@ package rotatefile
 
 import (
 	"fmt"
+	"github.com/ryboe/q"
 	"os"
 	"strconv"
 	"strings"
@@ -66,16 +67,10 @@ func EnvSize(envName string, defaultValue uint64) uint64 {
 	return defaultValue
 }
 
-var debugging = EnvBool("DEBUG", false)
-
 func Debugf(format string, a ...interface{}) {
-	if !debugging {
-		return
-	}
-
 	s := fmt.Sprintf(format, a...)
 	if !strings.HasSuffix(s, "\n") {
 		s += "\n"
 	}
-	os.Stderr.WriteString(s)
+	q.Q(s)
 }

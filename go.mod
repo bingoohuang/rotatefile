@@ -1,6 +1,8 @@
 module github.com/bingoohuang/rotatefile
 
-go 1.20
+go 1.21
+
+toolchain go1.21.5
 
 require (
 	golang.org/x/sys v0.15.0
@@ -8,6 +10,7 @@ require (
 )
 
 require (
+	github.com/ryboe/q v1.0.20
 	github.com/silentred/gid v1.0.2
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 )
