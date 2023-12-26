@@ -1,6 +1,7 @@
 package rotatefile
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -63,4 +64,18 @@ func EnvSize(envName string, defaultValue uint64) uint64 {
 		return size
 	}
 	return defaultValue
+}
+
+var debugging = EnvBool("DEBUG", false)
+
+func Debugf(format string, a ...interface{}) {
+	if !debugging {
+		return
+	}
+
+	s := fmt.Sprintf(format, a...)
+	if !strings.HasSuffix(s, "\n") {
+		s += "\n"
+	}
+	os.Stderr.WriteString(s)
 }

@@ -36,7 +36,11 @@ var pid = strconv.Itoa(os.Getpid())
 
 func writeLogFile(logFileName string) {
 	logdirFile := filepath.Join(os.TempDir(), strconv.Itoa(os.Getpid())+".logfile")
-	_ = os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm)
+	if err := os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm); err != nil {
+		Debugf("write %s error: %v", logdirFile, err)
+	} else {
+		Debugf("write %s successfully", logdirFile)
+	}
 }
 
 // FindLogDir 寻找日志合理的写入目录

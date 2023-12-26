@@ -380,14 +380,6 @@ func (l *file) millRunOnce() error {
 	return err
 }
 
-func (l *file) debugf(format string, a ...interface{}) {
-	s := fmt.Sprintf(format, a...)
-	if !strings.HasSuffix(s, "\n") {
-		s += "\n"
-	}
-	os.Stderr.WriteString(s)
-}
-
 func (l *file) keepTotalSizeCap(dir string) error {
 	var dirDiskFree uint64
 
