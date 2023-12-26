@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bingoohuang/q"
 	"github.com/bingoohuang/rotatefile/disk"
 	"github.com/bingoohuang/rotatefile/flock"
 )
@@ -104,6 +105,13 @@ var (
 // current time, and a new log file is created using the original log file name.
 // If the length of to write is greater than MaxSize, an error is returned.
 func (l *file) Write(p []byte) (n int, err error) {
+	n, err = l.writeInternal(p)
+	if err != nil {
+		q.Q(err)
+	}
+	return
+}
+func (l *file) writeInternal(p []byte) (n int, err error) {
 	if l.PrintTerm {
 		os.Stdout.Write(p)
 	}
