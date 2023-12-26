@@ -1,5 +1,5 @@
-github.com/bingoohuang/q v0.0.0-20231226015403-c189e97ac948 h1:GaXSOwXGpMTjyfYzfw2OxLDnlnzK/vxA7nILu7Nd5P0=
-github.com/bingoohuang/q v0.0.0-20231226015403-c189e97ac948/go.mod h1:PhY9YQe8I4s9CNwiTZzFmQE/9RWlZwpKTRzTpXssLkw=
+github.com/bingoohuang/q v0.0.0-20231226015948-6ef4cdd26313 h1:J/aFm7PDi7BovDDCvtlncvfr4Srn13JH3y1fulHywxA=
+github.com/bingoohuang/q v0.0.0-20231226015948-6ef4cdd26313/go.mod h1:PhY9YQe8I4s9CNwiTZzFmQE/9RWlZwpKTRzTpXssLkw=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
