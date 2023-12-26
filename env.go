@@ -2,11 +2,12 @@ package rotatefile
 
 import (
 	"fmt"
-	"github.com/ryboe/q"
 	"os"
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/bingoohuang/q"
 )
 
 // EnvSignals 解析环境变量设置的信号
