@@ -48,6 +48,8 @@ type Config struct {
 	// Filename is the file to write logs to.  Backup log files will be retained
 	// in the same directory.  It uses <processname>.log in os.TempDir() if empty.
 	Filename string `json:"filename" yaml:"filename"`
+	// Prefix 是日志基本文件名前缀，在 Filename 不指定的情况下，可以使用本字段给自动生成的日志文件名添加此前缀
+	Prefix string `json:"prefix" yaml:"prefix"`
 
 	// RotateSignals 设置滚动日志的信号
 	RotateSignals []os.Signal

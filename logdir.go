@@ -10,7 +10,7 @@ import (
 )
 
 // getLogFileName 获取可执行文件 binName 的日志文件路径
-func getLogFileName(logDir, logName string, tryLock bool) (string, *flock.Flock) {
+func getLogFileName(logDir, prefix, logName string, tryLock bool) (string, *flock.Flock) {
 	if p := FindLogDir(logDir); p != "" {
 		if logName == "" {
 			appName := filepath.Base(os.Args[0])
@@ -24,7 +24,7 @@ func getLogFileName(logDir, logName string, tryLock bool) (string, *flock.Flock)
 				logName = logName[:len(logName)-len(".log")] + "." + pid + ".log"
 			}
 		}
-		logFileName := filepath.Join(p, logName)
+		logFileName := filepath.Join(p, prefix, logName)
 		writeLogFile(logFileName)
 		return logFileName, logLock
 	}

@@ -114,7 +114,7 @@ func TestMakeLogDir(t *testing.T) {
 func TestDefaultFilename(t *testing.T) {
 	currentTime = fakeTime
 
-	filename, _ := getLogFileName("", "", false)
+	filename, _ := getLogFileName("", "", "", false)
 	defer os.Remove(filename)
 	l := &file{}
 	defer l.Close()
