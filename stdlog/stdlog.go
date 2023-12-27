@@ -53,7 +53,7 @@ func (w wrapper) Write(p []byte) (n int, err error) {
 	defer PutBuffer(buf)
 
 	levelBytes, _ := level.MarshalText()
-	return WriteLogLine(w.Writer, 5, levelBytes, p, buf)
+	return WriteLogLine(w.Writer, 6, levelBytes, p, buf)
 }
 
 func WriteLogLine(w io.Writer, callDepth int, level, msg []byte, buf *[]byte) (int, error) {
@@ -83,26 +83,43 @@ func writeCaller(callDepth int, b *[]byte) *[]byte {
 		return b
 	}
 
-	_, file, line, ok := runtime.Caller(callDepth)
-	if !ok {
-		file = "???"
-		line = 0
-	}
-	{
-		short := file
-		for i := len(file) - 1; i > 0; i-- {
-			if file[i] == '/' {
-				short = file[i+1:]
-				break
-			}
+	var (
+		file string
+		line int
+		ok   bool
+	)
+	rpc := make([]uintptr, 2)
+	if callers := runtime.Callers(callDepth, rpc); callers >= 1 {
+		frames := runtime.CallersFrames(rpc)
+		frame, _ := frames.Next()
+		if strings.HasPrefix(frame.Function, "log.") {
+			frame, _ = frames.Next()
 		}
-		file = short
+		file, line, ok = frame.File, frame.Line, frame.PC != 0
 	}
+
+	if ok {
+		file = shortFile(file)
+	} else {
+		file = "???"
+	}
+
 	*b = append(*b, file...)
 	*b = append(*b, ':')
 	itoa(b, int64(line), -1)
 	*b = append(*b, ']')
 	return b
+}
+
+func shortFile(file string) string {
+	short := file
+	for i := len(file) - 1; i > 0; i-- {
+		if file[i] == '/' {
+			short = file[i+1:]
+			break
+		}
+	}
+	return short
 }
 
 func writeMsg(p []byte, b *[]byte) *[]byte {
