@@ -83,8 +83,12 @@ type file struct {
 // RotateFile 滚动文件大小
 type RotateFile interface {
 	io.WriteCloser
+
 	Rotate() error
 	Flush() error
+
+	// GetFilename 取得日志文件的距离路径
+	GetFilename() string
 }
 
 // New 创建新一个新的滚动文件对象
@@ -290,6 +294,10 @@ func (l *file) openExistingOrNew(writeLen int) error {
 	l.file = file
 	l.size.Store(size)
 	return nil
+}
+
+func (l *file) GetFilename() string {
+	return l.filename
 }
 
 // setFileName generates the name of the logfile from the current time.

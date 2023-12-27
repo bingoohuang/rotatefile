@@ -32,10 +32,17 @@ func getLogFileName(logDir, logName string, tryLock bool) (string, *flock.Flock)
 	panic("日志已经无处安放，君欲何为？")
 }
 
+// GetFilename 获得当前进程的日志文件路径
+func GetFilename() string {
+	logdirFile := filepath.Join(os.TempDir(), pid+".logfile")
+	logfile, _ := os.ReadFile(logdirFile)
+	return string(logfile)
+}
+
 var pid = strconv.Itoa(os.Getpid())
 
 func writeLogFile(logFileName string) {
-	logdirFile := filepath.Join(os.TempDir(), strconv.Itoa(os.Getpid())+".logfile")
+	logdirFile := filepath.Join(os.TempDir(), pid+".logfile")
 	if err := os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm); err != nil {
 		Debugf("write %s error: %v", logdirFile, err)
 	} else {
