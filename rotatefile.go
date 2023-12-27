@@ -302,16 +302,24 @@ func (l *file) GetFilename() string {
 
 // setFileName generates the name of the logfile from the current time.
 func (l *file) setFileName() {
-	logDir, logName := l.Filename, ""
-	if strings.HasSuffix(l.Filename, ".log") {
+	l.filename, l.flock = GenerateFilename(l.Filename, true)
+	l.dir = filepath.Dir(l.filename)
+}
+
+// GenerateFilename 根据 filename 生成完整的
+// 1. filename 为 /some/path/xxx.log, 则继续保持
+// 2. filename 为 /some/path/, 则补齐日志文件名为: {appName}{currentDirBase}.log
+// 3. filename 为 空, 则根据 FindLogDir 生成指定的日志目录，日志文件名见上
+func GenerateFilename(filename string, tryLock bool) (string, *flock.Flock) {
+	logDir, logName := filename, ""
+	if strings.HasSuffix(filename, ".log") {
 		// 配置的是具体的日志文件名称（推荐的配置）
-		logDir = filepath.Dir(l.Filename)
-		logName = filepath.Base(l.Filename)
+		logDir = filepath.Dir(filename)
+		logName = filepath.Base(filename)
 	}
 
 	// 否则当做日志路径看待，日志文件名自动补全
-	l.filename, l.flock = getLogFileName(logDir, logName, true)
-	l.dir = filepath.Dir(l.filename)
+	return getLogFileName(logDir, logName, tryLock)
 }
 
 // millRunOnce performs compression and removal of stale log files.
