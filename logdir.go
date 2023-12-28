@@ -101,7 +101,7 @@ func FindLogDir(logDir string) string {
 // IsDirWritable 测试目录是否可写
 func IsDirWritable(dir string) bool {
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
-		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		if err := MkdirAll(dir, os.ModePerm); err != nil {
 			return false
 		}
 	}
