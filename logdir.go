@@ -2,9 +2,11 @@ package rotatefile
 
 import (
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"github.com/bingoohuang/rotatefile/flock"
 )
@@ -47,7 +49,20 @@ func writeLogFile(logFileName string) {
 		Debugf("write %s error: %v", logdirFile, err)
 	} else {
 		Debugf("write %s successfully", logdirFile)
+		handleSigint(func() {
+			os.Remove(logdirFile)
+		})
 	}
+}
+
+func handleSigint(f func()) {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	signal.Notify(ch, syscall.SIGTERM)
+	go func() {
+		<-ch
+		f()
+	}()
 }
 
 // FindLogDir 寻找日志合理的写入目录
