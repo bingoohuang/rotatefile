@@ -1,6 +1,7 @@
 package rotatefile
 
 import (
+	"github.com/bingoohuang/q"
 	"os"
 	"os/signal"
 	"os/user"
@@ -44,15 +45,9 @@ func GetFilename() string {
 var pid = strconv.Itoa(os.Getpid())
 
 func writeLogFile(logFileName string) {
+	q.Q(logFileName)
 	logdirFile := filepath.Join(os.TempDir(), pid+".logfile")
-	if err := os.WriteFile(logdirFile, []byte(logFileName), os.ModePerm); err != nil {
-		Debugf("write %s error: %v", logdirFile, err)
-	} else {
-		Debugf("write %s successfully", logdirFile)
-		handleSigint(func() {
-			os.Remove(logdirFile)
-		})
-	}
+	_ = q.AppendFile(logdirFile, []byte(logFileName+"\n"), os.ModePerm)
 }
 
 func handleSigint(f func()) {
