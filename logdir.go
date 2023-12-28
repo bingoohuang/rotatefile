@@ -26,7 +26,7 @@ func getLogFileName(logDir, prefix, logName string, tryLock bool) (string, *floc
 				logName = logName[:len(logName)-len(".log")] + "." + pid + ".log"
 			}
 		}
-		logFileName := filepath.Join(p, prefix, logName)
+		logFileName := filepath.Join(p, prefix+logName)
 		writeLogFile(logFileName)
 		return logFileName, logLock
 	}
