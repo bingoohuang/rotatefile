@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.5
 
 require (
-	github.com/bingoohuang/q v0.0.0-20231228093033-e8cafe78f6c4
+	github.com/bingoohuang/q v0.0.0-20231229091541-b558678a7f91
 	github.com/silentred/gid v1.0.2
 	golang.org/x/sys v0.15.0
 	golang.org/x/term v0.15.0
