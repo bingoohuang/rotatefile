@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/bingoohuang/rotatefile"
-	"github.com/silentred/gid"
+	"github.com/kortschak/goroutine"
 )
 
 type wrapper struct {
@@ -138,7 +138,7 @@ func writeMsg(p []byte, b *[]byte) *[]byte {
 
 func writeGid(b *[]byte) *[]byte {
 	*b = append(*b, '[')
-	id := gid.Get()
+	id := goroutine.ID()
 	len0 := len(*b)
 	*b = strconv.AppendInt(*b, id, 10)
 	len1 := len(*b)

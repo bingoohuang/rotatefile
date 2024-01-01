@@ -216,13 +216,12 @@ func (l *file) openNew() error {
 
 	name := l.filename
 	mode := os.FileMode(0o600)
-	info, err := osStat(name)
-	if info != nil {
+	if info, err := osStat(name); err == nil && info != nil {
 		// Copy the mode off the old logfile.
 		mode = info.Mode()
 		// move the existing file
-		newname := backupName(name, l.UtcTime)
-		if err := os.Rename(name, newname); err != nil {
+		newName := backupName(name, l.UtcTime)
+		if err := os.Rename(name, newName); err != nil {
 			return fmt.Errorf("can't rename log file: %s", err)
 		}
 
