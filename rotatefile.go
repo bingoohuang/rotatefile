@@ -115,6 +115,7 @@ func (l *file) Write(p []byte) (n int, err error) {
 	}
 	return
 }
+
 func (l *file) writeInternal(p []byte) (n int, err error) {
 	if l.PrintTerm {
 		os.Stdout.Write(p)

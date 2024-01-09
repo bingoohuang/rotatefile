@@ -1,7 +1,6 @@
 package rotatefile
 
 import (
-	"github.com/bingoohuang/q"
 	"os"
 	"os/signal"
 	"os/user"
@@ -9,6 +8,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/bingoohuang/q"
 	"github.com/bingoohuang/rotatefile/flock"
 )
 

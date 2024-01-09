@@ -41,7 +41,7 @@ func createConfig(fns ...ConfigFn) Config {
 }
 
 // IsTerminal tell is if it is on a terminal.
-var IsTerminal = term.IsTerminal(syscall.Stdout)
+var IsTerminal = term.IsTerminal(1)
 
 // Config 包括一些滚动文件的配置参数，所有参数，均有默认值，方便无脑集成
 type Config struct {
