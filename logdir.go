@@ -13,10 +13,9 @@ import (
 )
 
 // getLogFileName 获取可执行文件 binName 的日志文件路径
-func getLogFileName(logDir, prefix, logName string, tryLock bool) (string, *flock.Flock) {
-	if p := FindLogDir(logDir); p != "" {
+func getLogFileName(appName, logDir, prefix, logName string, tryLock bool) (string, *flock.Flock) {
+	if p := FindLogDir(appName, logDir); p != "" {
 		if logName == "" {
-			appName := filepath.Base(os.Args[0])
 			logName = appName + currentDirBase + ".log"
 		}
 
@@ -37,7 +36,7 @@ func getLogFileName(logDir, prefix, logName string, tryLock bool) (string, *floc
 
 // GetFilename 获得当前进程的日志文件路径
 func GetFilename() string {
-	logdirFile := filepath.Join(os.TempDir(), pid+".logfile")
+	logdirFile := filepath.Join(os.TempDir(), "logfile."+pid)
 	logfile, _ := os.ReadFile(logdirFile)
 	return string(logfile)
 }
@@ -46,7 +45,7 @@ var pid = strconv.Itoa(os.Getpid())
 
 func writeLogFile(logFileName string) {
 	q.Q(logFileName)
-	logdirFile := filepath.Join(os.TempDir(), pid+".logfile")
+	logdirFile := filepath.Join(os.TempDir(), "logfile."+pid)
 	_ = q.AppendFile(logdirFile, []byte(logFileName+"\n"), os.ModePerm)
 }
 
@@ -66,14 +65,13 @@ func handleSigint(f func()) {
 // 2. $PWD/log/{appName}_{appWorkDirBase}.log
 // 3. /var/log/apps/{appName}/{appName}_{appWorkDirBase}.log
 // 4. $TMPDIR/{appName}/{appName}_{appWorkDirBase}.log
-func FindLogDir(logDir string) string {
+func FindLogDir(appName, logDir string) string {
 	if logDir != "" {
 		if IsDirWritable(logDir) {
 			return logDir
 		}
 	}
 
-	appName := filepath.Base(os.Args[0])
 	if home, _ := HomeDir(); home != "" {
 		if p := filepath.Join(home, "log", appName); IsDirWritable(p) {
 			return p

@@ -2,6 +2,7 @@ package rotatefile
 
 import (
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/bingoohuang/rotatefile/homedir"
@@ -21,7 +22,8 @@ const (
 
 func createConfig(fns ...ConfigFn) Config {
 	c := Config{
-		Filename:      os.Getenv("LOG_FILENAME"),
+		AppName:       Env("LOG_APPNAME", filepath.Base(os.Args[0])),
+		Filename:      Env("LOG_FILENAME", ""),
 		RotateSignals: EnvSignals("LOG_ROTATE_SIGNALS", []os.Signal{syscall.SIGHUP}),
 		MaxSize:       EnvSize("LOG_MAX_SIZE", 100*MB),
 		MaxDays:       EnvInt("LOG_MAX_DAYS", 30),
@@ -45,6 +47,8 @@ var IsTerminal = term.IsTerminal(1)
 
 // Config 包括一些滚动文件的配置参数，所有参数，均有默认值，方便无脑集成
 type Config struct {
+	// AppName 定义日志文件的基础文件名，默认  filepath.Base(os.Args[0])
+	AppName string `json:"appName" yaml:"appName"`
 	// Filename is the file to write logs to.  Backup log files will be retained
 	// in the same directory.  It uses <processname>.log in os.TempDir() if empty.
 	Filename string `json:"filename" yaml:"filename"`
@@ -121,6 +125,13 @@ func WithMaxDays(v int) ConfigFn { return func(c *Config) { c.MaxDays = v } }
 
 // WithMaxSize 指定日志文件最大大小
 func WithMaxSize(v uint64) ConfigFn { return func(c *Config) { c.MaxSize = v } }
+
+// WithAppName 指定日志文件基础文件名
+func WithAppName(v string) ConfigFn {
+	return func(c *Config) {
+		c.AppName = v
+	}
+}
 
 // WithFilename 指定日志文件名字
 func WithFilename(v string) ConfigFn {

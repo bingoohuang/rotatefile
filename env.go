@@ -20,6 +20,14 @@ func EnvBool(envName string, defaultValue bool) bool {
 	return defaultValue
 }
 
+// Env 解析环境变量设置的 string 类型变量
+func Env(envName, defaultValue string) string {
+	if s := os.Getenv(envName); s != "" {
+		return s
+	}
+	return defaultValue
+}
+
 // EnvInt 解析环境变量设置的 int 类型变量
 func EnvInt(envName string, defaultValue int) int {
 	if s := os.Getenv(envName); s != "" {
@@ -45,6 +53,7 @@ func EnvSize(envName string, defaultValue uint64) uint64 {
 	return defaultValue
 }
 
+// Debugf print debug info.
 func Debugf(format string, a ...interface{}) {
 	s := fmt.Sprintf(format, a...)
 	if !strings.HasSuffix(s, "\n") {

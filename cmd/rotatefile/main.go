@@ -6,23 +6,30 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/bingoohuang/rotatefile"
-	"github.com/bingoohuang/rotatefile/stdlog"
+	_ "github.com/bingoohuang/rotatefile/stdlog/autoload"
 )
 
 func main() {
-	logdir := flag.String("logdir", "", "log dir")
+	flag.Bool("v", false, `
+通过环境变量设置：
+
+| 序号 | 变量名                | 默认值                       | 含义              |
+|----|--------------------|---------------------------|-----------------|
+| 1  | LOG_APPNAME        | filepath.Base(os.Args[0]) | 日志基础文件名         |
+| 2  | LOG_FILENAME       | 见下面 Config.Filename 说明    | 日志文件完整路径        |
+| 3  | LOG_ROTATE_SIGNALS | SIGHUP                    | 强制当前日志滚动信号      |
+| 4  | LOG_MAX_SIZE       | 100M                      | 单个日志文件最大大小      |
+| 5  | LOG_MAX_DAYS       | 30                        | 最多保留天数          |
+| 6  | LOG_MAX_BACKUPS    | 0                         | 最大历史文件个数        |
+| 7  | LOG_TOTAL_SIZE_CAP | 1G                        | 最大总大小           |
+| 8  | LOG_MIN_DISK_FREE  | 100M                      | 最少磁盘空余          |
+| 9  | LOG_UTCTIME        | 0                         | 是否使用 UTC 时间     |
+| 10 | LOG_COMPRESS       | 1                         | 是否启用gzip 压缩历史文件 |
+| 11 | LOG_PRINT_TERM     | 根据进程是否有终端                 | 同时在终端打印         |
+
+`)
 	flag.Parse()
 
-	f := rotatefile.New(
-		rotatefile.WithFilename(*logdir),      // 指定日志目录
-		rotatefile.WithMaxSize(100*1024),      // 单个日志文件最大100K
-		rotatefile.WithMaxDays(30),            // 最多保留30天
-		rotatefile.WithTotalSizeCap(300*1024), // 最大总大小300K
-		rotatefile.WithMinDiskFree(300*1024),  // 最少 100M 磁盘空余
-		rotatefile.WithPrintTerm(false),       // 屏幕不打印输出
-	)
-	log.SetOutput(stdlog.NewLevelLog(f))
 	for {
 		log.Printf("I! %s", RandStringBytesMaskImprSrc(1024))
 		time.Sleep(time.Second)
