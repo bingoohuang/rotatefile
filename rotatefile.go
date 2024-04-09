@@ -139,7 +139,7 @@ func (l *file) writeInternal(p []byte) (n int, err error) {
 	}
 
 	if l.file == nil {
-		if err = l.openExistingOrNew(len(p)); err != nil {
+		if err = l.openExistingOrNew(); err != nil {
 			return 0, err
 		}
 	}
@@ -273,7 +273,7 @@ func backupName(name string, utc bool) string {
 // openExistingOrNew opens the logfile if it exists and if the current write
 // would not put it over MaxSize.  If there is no such file or the write would
 // put it over the MaxSize, a new file is created.
-func (l *file) openExistingOrNew(writeLen int) error {
+func (l *file) openExistingOrNew() error {
 	l.mill()
 
 	filename := l.filename
@@ -288,10 +288,6 @@ func (l *file) openExistingOrNew(writeLen int) error {
 	var size int64
 	if info != nil {
 		size = info.Size()
-	}
-
-	if size+int64(writeLen) >= l.max() {
-		return l.rotate()
 	}
 
 	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0o644)
