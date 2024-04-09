@@ -78,6 +78,7 @@ type file struct {
 	size      atomic.Int64
 	startMill sync.Once
 	mu        sync.Mutex
+	lastWrite time.Time
 }
 
 // RotateFile 滚动文件大小
@@ -93,7 +94,9 @@ type RotateFile interface {
 
 // New 创建新一个新的滚动文件对象
 func New(fns ...ConfigFn) RotateFile {
-	return &file{Config: createConfig(fns...)}
+	return &file{
+		Config: createConfig(fns...),
+	}
 }
 
 var (
@@ -116,10 +119,14 @@ func (l *file) Write(p []byte) (n int, err error) {
 	return
 }
 
+const DAY = 24 * time.Hour
+
 func (l *file) writeInternal(p []byte) (n int, err error) {
 	if l.PrintTerm {
 		os.Stdout.Write(p)
 	}
+
+	writeTime := currentTime()
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -137,13 +144,15 @@ func (l *file) writeInternal(p []byte) (n int, err error) {
 		}
 	}
 
-	if l.size.Load()+writeLen > l.max() {
+	existSize := l.size.Load()
+	if existSize > 0 && (existSize+writeLen > l.max() || writeTime.Sub(l.lastWrite) >= DAY) {
 		if err := l.rotate(); err != nil {
 			return 0, err
 		}
 	}
 
 	n, err = l.file.Write(p)
+	l.lastWrite = writeTime
 	l.size.Add(int64(n))
 
 	return n, err
@@ -459,6 +468,7 @@ func (l *file) millRun() {
 // starting the mill goroutine if necessary.
 func (l *file) mill() {
 	l.startMill.Do(func() {
+		l.lastWrite = currentTime()
 		l.setFileName()
 		l.signalRotate()
 		l.millCh = make(chan bool, 1)
