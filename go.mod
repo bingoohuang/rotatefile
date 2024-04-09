@@ -7,8 +7,8 @@ toolchain go1.21.5
 require (
 	github.com/bingoohuang/q v0.0.0-20240327074618-3ac50e6530c2
 	github.com/kortschak/goroutine v1.1.1
-	golang.org/x/sys v0.18.0
-	golang.org/x/term v0.18.0
+	golang.org/x/sys v0.19.0
+	golang.org/x/term v0.19.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 )
 
