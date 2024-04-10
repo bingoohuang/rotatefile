@@ -70,6 +70,31 @@ func TestOpenExisting(t *testing.T) {
 	fileCount(dir, 1, t)
 }
 
+func TestOpenExistingLastDay(t *testing.T) {
+	currentTime = fakeTime
+	dir := makeTempDir("TestOpenExisting", t)
+	defer os.RemoveAll(dir)
+
+	filename := logFile(dir)
+	l := &file{
+		Config: Config{Filename: filename},
+	}
+	defer l.Close()
+	b := []byte("boo!")
+	n, err := l.Write(b)
+	isNil(err, t)
+	equals(len(b), n, t)
+
+	fakeCurrentTime = fakeCurrentTime.Add(24 * time.Hour)
+
+	n, err = l.Write(b)
+	isNil(err, t)
+	equals(len(b), n, t)
+
+	// make sure no other files were created
+	fileCount(dir, 2, t)
+}
+
 func TestWriteTooLong(t *testing.T) {
 	currentTime = fakeTime
 	dir := makeTempDir("TestWriteTooLong", t)
