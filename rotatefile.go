@@ -145,7 +145,7 @@ func (l *file) writeInternal(p []byte) (n int, err error) {
 	}
 
 	existSize := l.size.Load()
-	if existSize > 0 && (existSize+writeLen > l.max() || writeTime.Sub(l.lastWrite) >= DAY) {
+	if existSize > 0 && (existSize+writeLen > l.max() || l.lastWrite.Day() < writeTime.Day()) {
 		if err := l.rotate(); err != nil {
 			return 0, err
 		}
