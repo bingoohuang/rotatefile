@@ -99,11 +99,13 @@ type Config struct {
 	TotalSizeCap int64 `json:"totalSizeCap" yaml:"totalSizeCap"`
 
     // UtcTime determines if the time used for formatting the timestamps in
-    // backup files is the computer's local time. The default is to use local time.
+    // backup files is the computer's local time. 
+    // The default is to not to use local time.
     UtcTime bool `json:"utcTime" yaml:"utcTime"`
 
     // Compress determines if the rotated log files should be compressed
-    // using gzip. The default is not to perform compression.
+    // using gzip. 
+    // The default is to perform compression.
     Compress bool `json:"compress" yaml:"compress"`
    
     // contains filtered or unexported fields
@@ -113,15 +115,15 @@ type Config struct {
 rotatefile.File is an io.WriteCloser that writes to the specified filename.
 
 rotatefile.File opens or creates the logfile on first Write. If the file exists and
-is less than MaxSize megabytes, rotatefile will open and append to that file.
+is fewer than MaxSize megabytes, rotatefile will open and append to that file.
 If the file exists and its size is >= MaxSize megabytes, the file is renamed
 by putting the current time in a timestamp in the name immediately before the
 file's extension (or the end of the filename if there's no extension). A new
 log file is then created using original filename.
 
-Whenever a write would cause the current log file exceed MaxSize megabytes,
+Whenever a write would cause the current log file to exceed MaxSize megabytes,
 the current file is closed, renamed, and a new log file created with the
-original name. Thus, the filename you give rotatefile.File is always the "current" log
+original name. Thus, the filename you give rotatefile. File is always the "current" log
 file.
 
 Backups use the log file name given to rotatefile.File, in the form `name.timestamp.ext`

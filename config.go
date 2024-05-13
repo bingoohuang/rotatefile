@@ -84,12 +84,13 @@ type Config struct {
 	MinDiskFree uint64 `json:"minDiskFree" yaml:"minDiskFree"`
 
 	// UtcTime determines if the time used for formatting the timestamps in
-	// backup files is the computer's local time.  The default is to use UTC
-	// time.
+	// backup files is the computer's local time.
+	// The default is not to use UTC time.
 	UtcTime bool `json:"utcTime" yaml:"utcTime"`
 
 	// Compress determines if the rotated log files should be compressed
-	// using gzip. The default is not to perform compression.
+	// using gzip.
+	// The default is to perform compression.
 	Compress bool `json:"compress" yaml:"compress"`
 
 	// PrintTerm 是否同时在终端上输出，只有在终端可用时输出
