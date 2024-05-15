@@ -61,6 +61,7 @@ func init() {
 | 9  | LOG_UTCTIME        | 0                         | 是否使用 UTC 时间     |
 | 10 | LOG_COMPRESS       | 1                         | 是否启用gzip 压缩历史文件 |
 | 11 | LOG_PRINT_TERM     | 根据进程是否有终端                 | 同时在终端打印         |
+| 12 | LOG_LEVEL          | INFO                      | 默认日志打印级别        |
 
 ## type rotatefile.Config
 
